@@ -25,7 +25,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
   }
 
   Future<void> fetchBlogs() async {
-    final url = Uri.parse('http://192.168.15.171:5000/search?q=$searchQuery&user_id=${widget.userId}');
+    final url = Uri.parse('https://your-backend-url.up.railway.app/search?q=$searchQuery&user_id=${widget.userId}');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -42,7 +42,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
   }
 
   Future<void> fetchCategories() async {
-    final url = Uri.parse('http://192.168.15.171:5000/categories');
+    final url = Uri.parse('https://your-backend-url.up.railway.app/categories');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -116,7 +116,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
                   return;
                 }
 
-                final uri = Uri.parse('http://192.168.15.171:5000/submit_blog');
+                final uri =Uri.parse('https://your-backend-url.up.railway.app/submit_blog');
                 final request = http.MultipartRequest('POST', uri);
                 request.fields['title'] = title;
                 request.fields['content'] = content;
@@ -149,7 +149,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
   }
 
   Future<void> deleteBlog(int blogId) async {
-    final url = Uri.parse('http://192.168.15.171:5000/delete_blog');
+    final url = Uri.parse('https://your-backend-url.up.railway.app//delete_blog');
     try {
       final response = await http.post(
         url,
@@ -232,7 +232,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
                       child: BlogCard(
                         blog: blog,
                         onLike: () async {
-                          final url = Uri.parse('http://192.168.15.171:5000/like_blog');
+                          final url = Uri.parse('https://your-backend-url.up.railway.app/like_blog');
                           final response = await http.post(
                             url,
                             headers: {'Content-Type': 'application/json'},
