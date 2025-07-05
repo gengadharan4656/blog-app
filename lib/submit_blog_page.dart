@@ -57,7 +57,7 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
       return;
     }
 
-    final uri = Uri.parse('http://192.168.15.171:5000/submit_blog');
+    final uri = Uri.parse('https://your-backend-url.up.railway.app/submit_blog');
     final request = http.MultipartRequest('POST', uri);
     request.fields['title'] = title;
     request.fields['content'] = content;
