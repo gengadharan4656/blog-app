@@ -32,12 +32,14 @@ def reconnect_db():
         db.ping(reconnect=True, attempts=3, delay=2)
     except:
         db = mysql.connector.connect(
-            host="localhost",
+            host="gondola.proxy.rlwy.net",
             user="root",
-            password="Dharan$$4656",
-            database="blog_app"
+            password="PKpqjYoazbjHnybxtqjvxxIFuNpFAfqK",
+            database="railway",
+            port=25845
         )
         cursor = db.cursor(dictionary=True)
+
 
 def clear_results():
     while cursor.nextset():
@@ -265,8 +267,7 @@ def search():
 
     for blog in results:
         if blog['thumbnail']:
-            blog['thumbnail'] = f"http://192.168.15.171:5000/uploads/{blog['thumbnail']}"
-
+            blog['thumbnail'] = f"{request.host_url}uploads/{blog['thumbnail']}"
         if user_id:
             cursor.execute("SELECT * FROM blog_likes WHERE blog_id = %s AND user_id = %s", (blog['id'], user_id))
             blog['liked'] = bool(cursor.fetchone())
@@ -302,7 +303,7 @@ def get_blogs():
     blogs = cursor.fetchall()
     for blog in blogs:
         if blog['thumbnail']:
-            blog['thumbnail'] = f"http://192.168.15.171:5000/uploads/{blog['thumbnail']}"
+            blog['thumbnail'] = f"{request.host_url}uploads/{blog['thumbnail']}"
         if user_id:
             cursor.execute("SELECT * FROM blog_likes WHERE blog_id = %s AND user_id = %s", (blog['id'], user_id))
             blog['liked'] = bool(cursor.fetchone())
