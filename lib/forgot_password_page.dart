@@ -28,7 +28,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     }
 
     final response = await http.post(
-      Uri.parse("http://192.168.15.171:5000/send_otp_email"),
+      Uri.parse("https://your-backend-url.up.railway.app/send_otp_email"),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email}),
     );
@@ -66,7 +66,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     }
 
     final response = await http.post(
-      Uri.parse("http://192.168.15.171:5000/verify_otp"),
+      Uri.parse("https://your-backend-url.up.railway.app/verify_otp"),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'otp': enteredOtp}),
     );
