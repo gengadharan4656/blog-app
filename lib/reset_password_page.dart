@@ -31,7 +31,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     }
 
     final response = await http.post(
-      Uri.parse("http://192.168.15.171:5000/reset_password"),
+      Uri.parse("https://your-backend-url.up.railway.app/reset_password"),
 
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
