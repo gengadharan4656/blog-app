@@ -34,9 +34,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final response = await http.post(
-        Uri.parse("http://192.168.15.171:5000/login"), // Uri.parse("http://192.168.15.171:5000/login")
-
-
+        Uri.parse('https://your-backend-url.up.railway.app/login')
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "email_or_phone": emailOrPhone,
@@ -49,7 +47,7 @@ class _LoginPageState extends State<LoginPage> {
       final resData = jsonDecode(response.body);
 
       if (response.statusCode == 200 && resData['status'] == 'success') {
-        final String userId = resData['user_id'].toString(); // ✅ ensure String
+        final String userId = resData['user_id'].toString(); 
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => MainBlogPage(userId: userId)),
