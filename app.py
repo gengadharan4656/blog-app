@@ -15,6 +15,7 @@ UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# ✅ Railway MySQL Connection
 db = mysql.connector.connect(
     host="gondola.proxy.rlwy.net",
     user="root",
@@ -22,10 +23,10 @@ db = mysql.connector.connect(
     database="railway",
     port=25845
 )
-
 cursor = db.cursor(dictionary=True)
 otp_store = {}
 
+# ✅ Updated reconnect_db with Railway config
 def reconnect_db():
     global db, cursor
     try:
@@ -39,7 +40,6 @@ def reconnect_db():
             port=25845
         )
         cursor = db.cursor(dictionary=True)
-
 
 def clear_results():
     while cursor.nextset():
@@ -153,7 +153,6 @@ def submit_blog():
     user_id = request.form.get('user_id')
     image = request.files.get('thumbnail')
 
-    # ✅ Don't require image now
     if not all([title, content, category]):
         return jsonify({'status': 'error', 'message': 'Missing required fields'}), 400
 
@@ -163,7 +162,6 @@ def submit_blog():
         image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         image.save(image_path)
 
-    # ✅ Insert NULL for thumbnail if not provided
     cursor.execute(
         "INSERT INTO blogs (title, content, category, thumbnail, views, user_id) VALUES (%s, %s, %s, %s, %s, %s)",
         (title, content, category, filename, 0, user_id)
@@ -171,6 +169,7 @@ def submit_blog():
     db.commit()
 
     return jsonify({'status': 'success', 'message': 'Blog posted successfully'})
+
 @app.route('/delete_blog', methods=['POST'])
 def delete_blog():
     reconnect_db()
@@ -200,30 +199,22 @@ def like_blog():
     try:
         cursor = db.cursor()
 
-        # 🔍 Check if the user has already liked the blog
         cursor.execute("SELECT * FROM likes WHERE blog_id = %s AND user_id = %s", (blog_id, user_id))
         existing_like = cursor.fetchone()
 
         if existing_like:
-            # 👎 User already liked it, so remove the like (unlike)
             cursor.execute("DELETE FROM likes WHERE blog_id = %s AND user_id = %s", (blog_id, user_id))
             db.commit()
             action = 'unliked'
         else:
-            # 👍 User has not liked it yet, so add a like
             cursor.execute("INSERT INTO likes (blog_id, user_id) VALUES (%s, %s)", (blog_id, user_id))
             db.commit()
             action = 'liked'
 
-        # 🔄 Fetch updated like count for the blog
         cursor.execute("SELECT COUNT(*) FROM likes WHERE blog_id = %s", (blog_id,))
         like_count = cursor.fetchone()[0]
 
-        return jsonify({
-            'success': True,
-            'action': action,          # tells frontend if it was liked or unliked
-            'likes': like_count        # updated like count
-        })
+        return jsonify({'success': True, 'action': action, 'likes': like_count})
 
     except Exception as e:
         print("Error in like_blog:", str(e))
@@ -236,12 +227,10 @@ def like_blog():
 def is_liked():
     blog_id = request.args.get('blog_id')
     user_id = request.args.get('user_id')
-
     cursor = db.cursor()
     cursor.execute("SELECT * FROM likes WHERE blog_id = %s AND user_id = %s", (blog_id, user_id))
     liked = cursor.fetchone() is not None
     return jsonify({'liked': liked})
-
 
 @app.route('/search', methods=['GET'])
 def search():
@@ -268,25 +257,12 @@ def search():
     for blog in results:
         if blog['thumbnail']:
             blog['thumbnail'] = f"{request.host_url}uploads/{blog['thumbnail']}"
-        if user_id:
-            cursor.execute("SELECT * FROM blog_likes WHERE blog_id = %s AND user_id = %s", (blog['id'], user_id))
-            blog['liked'] = bool(cursor.fetchone())
-        else:
-            blog['liked'] = False
+        blog['liked'] = False
 
-    cursor.execute("""
-        SELECT id, title, category, views
-        FROM blogs
-        ORDER BY views DESC
-        LIMIT 3
-    """)
+    cursor.execute("SELECT id, title, category, views FROM blogs ORDER BY views DESC LIMIT 3")
     suggestions = cursor.fetchall()
 
-    return jsonify({
-        'predefined': predefined,
-        'user': results,
-        'suggestions': suggestions
-    })
+    return jsonify({'predefined': predefined, 'user': results, 'suggestions': suggestions})
 
 @app.route('/get_blogs')
 def get_blogs():
@@ -304,11 +280,7 @@ def get_blogs():
     for blog in blogs:
         if blog['thumbnail']:
             blog['thumbnail'] = f"{request.host_url}uploads/{blog['thumbnail']}"
-        if user_id:
-            cursor.execute("SELECT * FROM blog_likes WHERE blog_id = %s AND user_id = %s", (blog['id'], user_id))
-            blog['liked'] = bool(cursor.fetchone())
-        else:
-            blog['liked'] = False
+        blog['liked'] = False
     return jsonify(blogs)
 
 @app.route('/view_blog/<int:blog_id>', methods=['POST'])
