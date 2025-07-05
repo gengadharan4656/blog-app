@@ -26,7 +26,7 @@ class _SearchPageState extends State<SearchPage> {
     });
 
     try {
-      final url = Uri.parse("http://192.168.15.171:5000/search?q=$query"); //http://192.168.15.171:5000/categories
+      final url =Uri.parse('https://your-backend-url.up.railway.app/search?q=$query'); //http://192.168.15.171:5000/categories
 
       final response = await http.get(url);
 
