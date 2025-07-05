@@ -1,0 +1,24 @@
+name: dharanflutter
+description: A new Flutter project.
+publish_to: 'none' # Prevent accidental publishing
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.1                                    #
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.4.0
+  image_picker: ^1.1.2
+  path: ^1.8.3
+
+
+
+dev_dependencies:
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+
