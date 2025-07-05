@@ -22,13 +22,13 @@ class _FullBlogPageState extends State<FullBlogPage> {
     super.initState();
     blog = widget.blog;
     likes = blog['likes'] ?? 0;
-    liked = blog['liked'] == true; // safely default to false if null or not bool
+    liked = blog['liked'] == true;
   }
 
   void toggleLike() async {
     try {
       final response = await http.post(
-        Uri.parse('https://your-backend-url.up.railway.app/like_blog'),
+        Uri.parse('https://blog-app-k878.onrender.com/like_blog'), // ✅ Updated URL
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'user_id': int.parse(widget.userId),
@@ -40,7 +40,7 @@ class _FullBlogPageState extends State<FullBlogPage> {
         final res = jsonDecode(response.body);
         setState(() {
           likes = res['likes'] ?? likes;
-          liked = !liked;
+          liked = res['action'] == 'liked';
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -74,7 +74,7 @@ class _FullBlogPageState extends State<FullBlogPage> {
                 width: double.infinity,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) =>
-                const SizedBox.shrink(),
+                    const SizedBox.shrink(),
               ),
             ),
           const SizedBox(height: 16),
