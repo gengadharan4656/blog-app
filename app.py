@@ -16,11 +16,13 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 db = mysql.connector.connect(
-    host="localhost",
+    host="gondola.proxy.rlwy.net",
     user="root",
-    password="Dharan$$4656",
-    database="blog_app"
+    password="PKpqjYoazbjHnybxtqjvxxIFuNpFAfqK",
+    database="railway",
+    port=25845
 )
+
 cursor = db.cursor(dictionary=True)
 otp_store = {}
 
