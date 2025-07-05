@@ -68,27 +68,20 @@ def send_email_otp(receiver_email, otp):
 
 @app.route('/register', methods=['POST'])
 def register():
-    reconnect_db()
-    clear_results()
-    data = request.get_json()
-    name, email, phone, password = data.get('name'), data.get('email'), data.get('phone'), data.get('password')
-    if not all([name, email, phone, password]):
-        return jsonify({'status': 'error', 'message': 'All fields are required'}), 400
-    cursor.execute("SELECT * FROM users WHERE email = %s OR phone = %s", (email, phone))
-    if cursor.fetchone():
-        return jsonify({'status': 'error', 'message': 'Email or phone already in use'}), 409
+    data = request.form
+    name = data.get("name")
+    email = data.get("email")
+    phone = data.get("phone")
+    password = data.get("password")
 
-    user_id = f"USER{random.randint(10000, 99999)}"
-    while True:
-        cursor.execute("SELECT * FROM users WHERE user_id = %s", (user_id,))
-        if not cursor.fetchone():
-            break
-        user_id = f"USER{random.randint(10000, 99999)}"
-
-    cursor.execute("INSERT INTO users (user_id, name, email, phone, password) VALUES (%s, %s, %s, %s, %s)",
-                   (user_id, name, email, phone, password))
-    db.commit()
-    return jsonify({'status': 'success', 'message': 'User registered', 'user_id': user_id})
+    try:
+        cursor = db.cursor()
+        cursor.execute("INSERT INTO users (name, email, phone, password) VALUES (%s, %s, %s, %s)",
+                       (name, email, phone, password))
+        db.commit()
+        return jsonify({"status": "success", "message": "User registered successfully"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
 
 @app.route('/login', methods=['POST'])
 def login():
