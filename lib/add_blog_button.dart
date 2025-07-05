@@ -45,15 +45,16 @@ class _AddBlogButtonState extends State<AddBlogButton> {
     final title = titleController.text.trim();
     final content = contentController.text.trim();
 
-    if (title.isEmpty || content.isEmpty || (_imageFile == null && _imageBytes == null)) {
+    if (title.isEmpty || content.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill all fields and add a thumbnail")),
+        const SnackBar(content: Text("Please fill all fields")),
       );
       return;
     }
 
-    final uri = Uri.parse('http://192.168.15.171:5000/submit_blog');
+    // ✅ Update Render URL here
+    final uri = Uri.parse('https://blog-app-k878.onrender.com/submit_blog');
     var request = http.MultipartRequest('POST', uri)
       ..fields['title'] = title
       ..fields['content'] = content;
@@ -143,3 +144,4 @@ class _AddBlogButtonState extends State<AddBlogButton> {
     );
   }
 }
+
