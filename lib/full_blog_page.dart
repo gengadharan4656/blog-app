@@ -28,7 +28,7 @@ class _FullBlogPageState extends State<FullBlogPage> {
   void toggleLike() async {
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.15.171:5000/like_blog'),
+        Uri.parse('https://your-backend-url.up.railway.app/like_blog'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'user_id': int.parse(widget.userId),
