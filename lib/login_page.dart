@@ -34,7 +34,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://your-backend-url.up.railway.app/login')
+        Uri.parse('https://blog-app-k878.onrender.com/login'), // ✅ Updated backend URL
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "email_or_phone": emailOrPhone,
@@ -47,7 +47,7 @@ class _LoginPageState extends State<LoginPage> {
       final resData = jsonDecode(response.body);
 
       if (response.statusCode == 200 && resData['status'] == 'success') {
-        final String userId = resData['user_id'].toString(); 
+        final String userId = resData['user_id'].toString();
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => MainBlogPage(userId: userId)),
@@ -89,8 +89,6 @@ class _LoginPageState extends State<LoginPage> {
                 children: [
                   const Text("Login", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 20),
-
-                  // Email or Phone
                   TextField(
                     controller: emailPhoneController,
                     decoration: const InputDecoration(
@@ -99,8 +97,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: 15),
-
-                  // Password
                   TextField(
                     controller: passwordController,
                     obscureText: _obscurePassword,
@@ -118,8 +114,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
-
-                  // Login Button
                   ElevatedButton(
                     onPressed: _isLoading ? null : loginUser,
                     style: ElevatedButton.styleFrom(
@@ -131,8 +125,6 @@ class _LoginPageState extends State<LoginPage> {
                         : const Text("Login", style: TextStyle(fontSize: 16)),
                   ),
                   const SizedBox(height: 10),
-
-                  // Navigation Options
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
