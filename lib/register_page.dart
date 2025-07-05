@@ -36,7 +36,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
     setState(() => _isLoading = true);
 
-    final url = Uri.parse('https://your-backend-url.up.railway.app/register');  
+    final url = Uri.parse('https://blog-app-k878.onrender.com/register');  
 
     try {
       final response = await http.post(
