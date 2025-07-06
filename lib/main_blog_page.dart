@@ -1,3 +1,4 @@
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -16,7 +17,8 @@ class _MainBlogPageState extends State<MainBlogPage> {
   List<dynamic> blogs = [];
   List<String> categories = [];
   String searchQuery = '';
-  final searchController = TextEditingController();
+  final TextEditingController searchController = TextEditingController();
+  File? imageFile;
 
   @override
   void initState() {
@@ -26,7 +28,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
   }
 
   Future<void> fetchBlogs() async {
-    final url = Uri.parse("https://blog-app-k878.onrender.com/search?q=$searchQuery&user_id=${widget.userId}");
+    final url = Uri.parse("https://blog-app-k878.onrender.com/search?q=${Uri.encodeComponent(searchQuery)}&user_id=${widget.userId}");
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -42,9 +44,12 @@ class _MainBlogPageState extends State<MainBlogPage> {
         });
 
         setState(() => blogs = combinedBlogs);
+      } else {
+        setState(() => blogs = []);
       }
     } catch (e) {
       print('Error fetching blogs: $e');
+      setState(() => blogs = []);
     }
   }
 
@@ -62,9 +67,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
   }
 
   void onSearch(String query) {
-    setState(() {
-      searchQuery = query;
-    });
+    setState(() => searchQuery = query);
     fetchBlogs();
   }
 
@@ -72,7 +75,6 @@ class _MainBlogPageState extends State<MainBlogPage> {
     final titleController = TextEditingController();
     final contentController = TextEditingController();
     final categoryController = TextEditingController();
-    File? imageFile;
 
     showDialog(
       context: context,
@@ -158,32 +160,6 @@ class _MainBlogPageState extends State<MainBlogPage> {
     );
   }
 
-  Future<void> deleteBlog(int blogId) async {
-    final url = Uri.parse("https://blog-app-k878.onrender.com/delete_blog");
-    try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'blog_id': blogId, 'user_id': int.parse(widget.userId)}),
-      );
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Blog deleted")));
-        fetchBlogs();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to delete blog")));
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: \$e")));
-    }
-  }
-
-  void openBlogPage(Map blog) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => FullBlogPage(blog: blog, userId: widget.userId)),
-    ).then((_) => fetchBlogs());
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -193,7 +169,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
         actions: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: Center(child: Text("User ID: \${widget.userId}", style: const TextStyle(fontSize: 14))),
+            child: Center(child: Text("User ID: ${widget.userId}", style: const TextStyle(fontSize: 14))),
           ),
         ],
       ),
@@ -223,9 +199,6 @@ class _MainBlogPageState extends State<MainBlogPage> {
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              onChanged: (value) {
-                searchQuery = value;
-              },
               onSubmitted: onSearch,
             ),
           ),
@@ -233,61 +206,48 @@ class _MainBlogPageState extends State<MainBlogPage> {
             child: blogs.isEmpty
                 ? const Center(child: Text("No blogs found. Try exploring suggestions above!"))
                 : ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: blogs.length,
-              itemBuilder: (context, index) {
-                final blog = blogs[index];
-                final isUploader = blog['user_id'].toString() == widget.userId;
-
-                return Stack(
-                  children: [
-                    GestureDetector(
-                      onTap: () => openBlogPage(blog),
-                      child: BlogCard(
-                        blog: blog,
-                        onLike: () async {
-                          final url = Uri.parse("https://blog-app-k878.onrender.com/like_blog");
-                          final response = await http.post(
-                            url,
-                            headers: {'Content-Type': 'application/json'},
-                            body: jsonEncode({'user_id': int.parse(widget.userId), 'blog_id': blog['id']}),
-                          );
-                          if (response.statusCode == 200) {
-                            final updated = jsonDecode(response.body);
-                            setState(() {
-                              blog['likes'] = updated['likes'];
-                              blog['liked'] = !(blog['liked'] ?? false);
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                    if (isUploader)
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () async {
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (ctx) => AlertDialog(
-                                title: const Text("Delete Blog"),
-                                content: const Text("Are you sure?"),
-                                actions: [
-                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
-                                  TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Delete")),
-                                ],
+                    padding: const EdgeInsets.all(12),
+                    itemCount: blogs.length,
+                    itemBuilder: (context, index) {
+                      final blog = blogs[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 3,
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(blog['title'] ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 6),
+                              Text(
+                                (blog['content']?.toString().length ?? 0) > 100
+                                    ? blog['content']!.toString().substring(0, 100) + '...'
+                                    : blog['content'],
+                                style: const TextStyle(fontSize: 14, color: Colors.black87),
                               ),
-                            );
-                            if (confirm == true) deleteBlog(blog['id']);
-                          },
+                              const SizedBox(height: 10),
+                              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                                Chip(label: Text(blog['category'] ?? 'Other'), backgroundColor: Colors.blue.shade50),
+                                Row(children: [
+                                  Text("By ${blog['username'] ?? 'Anonymous'}", style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                                  const SizedBox(width: 12),
+                                  const Icon(Icons.remove_red_eye, size: 16, color: Colors.grey),
+                                  const SizedBox(width: 4),
+                                  Text('${blog['views'] ?? 0}', style: const TextStyle(color: Colors.grey)),
+                                  const SizedBox(width: 12),
+                                  const Icon(Icons.favorite_border, size: 18, color: Colors.red),
+                                  const SizedBox(width: 4),
+                                  Text('${blog['likes'] ?? 0}', style: const TextStyle(color: Colors.grey)),
+                                ])
+                              ])
+                            ],
+                          ),
                         ),
-                      ),
-                  ],
-                );
-              },
-            ),
+                      );
+                    },
+                  ),
           ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
@@ -297,84 +257,4 @@ class _MainBlogPageState extends State<MainBlogPage> {
       ),
     );
   }
-}
-
-class BlogCard extends StatelessWidget {
-  final Map blog;
-  final VoidCallback onLike;
-  const BlogCard({super.key, required this.blog, required this.onLike});
-
-  @override
-  Widget build(BuildContext context) {
-    final isLiked = blog['liked'] ?? false;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 3,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(blog['title'] ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Text(
-              (blog['content']?.toString().length ?? 0) > 100
-                  ? blog['content']!.toString().substring(0, 100) + '...'
-                  : blog['content'],
-              style: const TextStyle(fontSize: 14, color: Colors.black87),
-            ),
-            const SizedBox(height: 10),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Chip(label: Text(blog['category'] ?? 'Other'), backgroundColor: Colors.blue.shade50),
-              Row(children: [
-                Text("By \${blog['username'] ?? 'Anonymous'}", style: const TextStyle(fontSize: 13, color: Colors.black54)),
-                const SizedBox(width: 12),
-                const Icon(Icons.remove_red_eye, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text('\${blog['views'] ?? 0}', style: const TextStyle(color: Colors.grey)),
-                const SizedBox(width: 12),
-                GestureDetector(
-                  onTap: onLike,
-                  child: Icon(isLiked ? Icons.favorite : Icons.favorite_border, size: 18, color: Colors.red),
-                ),
-                const SizedBox(width: 4),
-                Text('\${blog['likes'] ?? 0}', style: const TextStyle(color: Colors.grey)),
-              ]),
-            ])
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class FullBlogPage extends StatelessWidget {
-  final Map blog;
-  final String userId;
-  const FullBlogPage({super.key, required this.blog, required this.userId});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(blog['title'] ?? 'Blog')),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          if (blog['thumbnail'] != null)
-            Image.network(blog['thumbnail'], height: 200, fit: BoxFit.cover),
-          const SizedBox(height: 10),
-          Text(blog['content'] ?? '', style: const TextStyle(fontSize: 16)),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              const Icon(Icons.thumb_up, color: Colors.blue),
-              const SizedBox(width: 4),
-              Text("\${blog['likes'] ?? 0} likes", style: const TextStyle(fontSize: 16)),
-            ],
-          )
-        ],
-      ),
-    );
-  }
-}
+} 
