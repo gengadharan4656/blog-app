@@ -269,37 +269,43 @@ def is_liked():
     liked = cursor.fetchone() is not None
     return jsonify({'liked': liked})
 
-@app.route('/search', methods=['GET'])
+@app.route('/search')
 def search():
-    reconnect_db()
-    clear_results()
+    user_id = request.args.get('user_id')
     query = request.args.get('q', '').lower()
-    user_id = request.args.get('user_id', type=int)
-    try:
-        with open('predefined_blogs.json') as f:
-            predefined = json.load(f)
-    except:
-        predefined = []
 
-    cursor.execute("""
-        SELECT blogs.id, blogs.title, blogs.content, blogs.category, blogs.thumbnail, blogs.views, blogs.likes,
-               blogs.user_id, users.name AS username
-        FROM blogs
-        JOIN users ON blogs.user_id = users.id
-        WHERE LOWER(blogs.title) LIKE %s OR LOWER(blogs.content) LIKE %s OR LOWER(blogs.category) LIKE %s
-        ORDER BY blogs.id DESC
-    """, (f"%{query}%", f"%{query}%", f"%{query}%"))
-    results = cursor.fetchall()
+    # Fetch predefined blogs
+    with open('predefined_blogs.json') as f:
+        predefined = json.load(f)
 
-    for blog in results:
-        if blog['thumbnail']:
-            blog['thumbnail'] = f"{request.host_url}uploads/{blog['thumbnail']}"
+    predefined_results = [
+        blog for blog in predefined
+        if query in blog.get('title', '').lower()
+        or query in blog.get('content', '').lower()
+        or query in blog.get('category', '').lower()
+    ]
+
+    # Fetch user blogs
+    cursor.execute("SELECT * FROM blogs WHERE title LIKE %s OR content LIKE %s OR category LIKE %s ORDER BY created_at DESC",
+                   (f'%{query}%', f'%{query}%', f'%{query}%'))
+    blogs = cursor.fetchall()
+
+    user_results = []
+    for blog in blogs:
+        cursor.execute("SELECT username FROM users WHERE id = %s", (blog['user_id'],))
+        user = cursor.fetchone()
+        blog['username'] = user['username'] if user else 'Unknown'
         blog['liked'] = False
 
-    cursor.execute("SELECT id, title, category, views FROM blogs ORDER BY views DESC LIMIT 3")
-    suggestions = cursor.fetchall()
+        if user_id:
+            cursor.execute("SELECT * FROM likes WHERE user_id = %s AND blog_id = %s", (user_id, blog['id']))
+            if cursor.fetchone():
+                blog['liked'] = True
 
-    return jsonify({'predefined': predefined, 'user': results, 'suggestions': suggestions})
+        user_results.append(blog)
+
+    return jsonify({'predefined': predefined_results, 'user': user_results})
+
 
 @app.route('/get_blogs')
 def get_blogs():
