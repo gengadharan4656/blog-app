@@ -1,4 +1,3 @@
-// Updated MainBlogPage.dart
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -71,15 +70,33 @@ class _MainBlogPageState extends State<MainBlogPage> {
     fetchBlogs();
   }
 
-  void deleteBlog(String blogId) async {
-    final response = await http.delete(
-      Uri.parse('https://blog-app-k878.onrender.com/delete_blog/$blogId'),
+  Future<void> deleteBlog(String blogId) async {
+    final url = Uri.parse("https://blog-app-k878.onrender.com/delete_blog");
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'blog_id': blogId, 'user_id': widget.userId}),
     );
     if (response.statusCode == 200) {
       fetchBlogs();
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Blog deleted")));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to delete blog")));
+    }
+  }
+
+  Future<void> toggleLike(String blogId) async {
+    final url = Uri.parse("https://blog-app-k878.onrender.com/like_blog");
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'blog_id': blogId, 'user_id': widget.userId}),
+    );
+
+    if (response.statusCode == 200) {
+      fetchBlogs();
+    } else {
+      print("Failed to like blog");
     }
   }
 
@@ -158,10 +175,10 @@ class _MainBlogPageState extends State<MainBlogPage> {
                     onUploadComplete();
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Blog uploaded successfully")));
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Upload failed (\${response.statusCode})")));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Upload failed (${response.statusCode})")));
                   }
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: \$e")));
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
                 }
               },
               child: const Text("Submit"),
@@ -222,9 +239,9 @@ class _MainBlogPageState extends State<MainBlogPage> {
                     itemCount: blogs.length,
                     itemBuilder: (context, index) {
                       final blog = blogs[index];
-                      final blogImage = blog['thumbnail'] != null && blog['thumbnail'].toString().isNotEmpty
+                      final blogImage = (blog['thumbnail'] ?? '').toString().trim().isNotEmpty
                           ? 'https://blog-app-k878.onrender.com/uploads/${blog['thumbnail']}'
-                          : 'https://via.placeholder.com/300x200.png?text=Default+Thumbnail';
+                          : 'https://via.placeholder.com/300x200.png?text=No+Thumbnail';
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
@@ -233,7 +250,20 @@ class _MainBlogPageState extends State<MainBlogPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Image.network(blogImage, height: 180, width: double.infinity, fit: BoxFit.cover),
+                            Image.network(
+                              blogImage,
+                              height: 180,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Image.network(
+                                  'https://via.placeholder.com/300x200.png?text=Image+Unavailable',
+                                  height: 180,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                );
+                              },
+                            ),
                             Padding(
                               padding: const EdgeInsets.all(14),
                               child: Column(
@@ -248,25 +278,35 @@ class _MainBlogPageState extends State<MainBlogPage> {
                                     style: const TextStyle(fontSize: 14, color: Colors.black87),
                                   ),
                                   const SizedBox(height: 10),
-                                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                                    Chip(label: Text(blog['category'] ?? 'Other'), backgroundColor: Colors.blue.shade50),
-                                    Row(children: [
-                                      Text("By ${blog['username'] ?? 'Anonymous'}", style: const TextStyle(fontSize: 13, color: Colors.black54)),
-                                      const SizedBox(width: 12),
-                                      const Icon(Icons.remove_red_eye, size: 16, color: Colors.grey),
-                                      const SizedBox(width: 4),
-                                      Text('${blog['views'] ?? 0}', style: const TextStyle(color: Colors.grey)),
-                                      const SizedBox(width: 12),
-                                      const Icon(Icons.favorite_border, size: 18, color: Colors.red),
-                                      const SizedBox(width: 4),
-                                      Text('${blog['likes'] ?? 0}', style: const TextStyle(color: Colors.grey)),
-                                      if ('${blog['user_id']}' == widget.userId)
-                                        IconButton(
-                                          icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                          onPressed: () => deleteBlog(blog['id'].toString()),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Chip(label: Text(blog['category'] ?? 'Other'), backgroundColor: Colors.blue.shade50),
+                                      Row(children: [
+                                        Text("By ${blog['username'] ?? 'Anonymous'}", style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                                        const SizedBox(width: 12),
+                                        const Icon(Icons.remove_red_eye, size: 16, color: Colors.grey),
+                                        const SizedBox(width: 4),
+                                        Text('${blog['views'] ?? 0}', style: const TextStyle(color: Colors.grey)),
+                                        const SizedBox(width: 12),
+                                        GestureDetector(
+                                          onTap: () => toggleLike(blog['id'].toString()),
+                                          child: Icon(
+                                            blog['liked'] == true ? Icons.favorite : Icons.favorite_border,
+                                            size: 18,
+                                            color: Colors.red,
+                                          ),
                                         ),
-                                    ])
-                                  ])
+                                        const SizedBox(width: 4),
+                                        Text('${blog['likes'] ?? 0}', style: const TextStyle(color: Colors.grey)),
+                                        if ('${blog['user_id']}' == widget.userId)
+                                          IconButton(
+                                            icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                            onPressed: () => deleteBlog(blog['id'].toString()),
+                                          ),
+                                      ])
+                                    ],
+                                  )
                                 ],
                               ),
                             )
