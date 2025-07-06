@@ -57,7 +57,8 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
       return;
     }
 
-    final uri = Uri.parse('https://blog-app-k878.onrender.com/submit_blog');
+    final uri = Uri.parse('https://blog-app-k878.onrender.com/submit_blog');   
+
     final request = http.MultipartRequest('POST', uri);
 
     request.fields['user_id'] = widget.userId;
