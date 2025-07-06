@@ -168,7 +168,7 @@ def submit_blog():
 
 @app.route('/uploads/<filename>')
 def serve_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route('/search')
 def search():
