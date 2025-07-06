@@ -33,7 +33,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
         final predefined = List<Map<String, dynamic>>.from(data['predefined'] ?? []);
         final userBlogs = List<Map<String, dynamic>>.from(data['user'] ?? []);
         final combinedBlogs = [...predefined, ...userBlogs];
-        combinedBlogs.sort((a, b) => (b['id'] ?? 0).compareTo(a['id'] ?? 0));
+        combinedBlogs.sort((a, b) => DateTime.parse(b['created_at']).compareTo(DateTime.parse(a['created_at'])));
         setState(() => blogs = combinedBlogs);
       }
     } catch (e) {
@@ -135,10 +135,10 @@ class _MainBlogPageState extends State<MainBlogPage> {
                     onUploadComplete();
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Blog uploaded successfully")));
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Upload failed (${response.statusCode})")));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Upload failed (\${response.statusCode})")));
                   }
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: \$e")));
                 }
               },
               child: const Text("Submit"),
@@ -164,7 +164,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to delete blog")));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: \$e")));
     }
   }
 
@@ -184,7 +184,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
         actions: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: Center(child: Text("User ID: ${widget.userId}", style: const TextStyle(fontSize: 14))),
+            child: Center(child: Text("User ID: \${widget.userId}", style: const TextStyle(fontSize: 14))),
           ),
         ],
       ),
@@ -315,18 +315,18 @@ class BlogCard extends StatelessWidget {
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Chip(label: Text(blog['category'] ?? 'Other'), backgroundColor: Colors.blue.shade50),
               Row(children: [
-                Text("By ${blog['username'] ?? 'Anonymous'}", style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                Text("By \${blog['username'] ?? 'Anonymous'}", style: const TextStyle(fontSize: 13, color: Colors.black54)),
                 const SizedBox(width: 12),
                 const Icon(Icons.remove_red_eye, size: 16, color: Colors.grey),
                 const SizedBox(width: 4),
-                Text('${blog['views'] ?? 0}', style: const TextStyle(color: Colors.grey)),
+                Text('\${blog['views'] ?? 0}', style: const TextStyle(color: Colors.grey)),
                 const SizedBox(width: 12),
                 GestureDetector(
                   onTap: onLike,
                   child: Icon(isLiked ? Icons.favorite : Icons.favorite_border, size: 18, color: Colors.red),
                 ),
                 const SizedBox(width: 4),
-                Text('${blog['likes'] ?? 0}', style: const TextStyle(color: Colors.grey)),
+                Text('\${blog['likes'] ?? 0}', style: const TextStyle(color: Colors.grey)),
               ]),
             ])
           ],
@@ -357,7 +357,7 @@ class FullBlogPage extends StatelessWidget {
             children: [
               const Icon(Icons.thumb_up, color: Colors.blue),
               const SizedBox(width: 4),
-              Text("${blog['likes'] ?? 0} likes", style: const TextStyle(fontSize: 16)),
+              Text("\${blog['likes'] ?? 0} likes", style: const TextStyle(fontSize: 16)),
             ],
           )
         ],
