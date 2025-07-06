@@ -25,7 +25,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
   }
 
   Future<void> fetchBlogs() async {
-    final url = Uri.parse('https://blog-app-k878.onrender.com/search?q=$searchQuery&user_id=${widget.userId}');
+    final url = Uri.parse("https://blog-app-k878.onrender.com/search?q=$searchQuery&user_id=${widget.userId}");
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -42,7 +42,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
   }
 
   Future<void> fetchCategories() async {
-    final url = Uri.parse('https://blog-app-k878.onrender.com/categories');
+    final url = Uri.parse("https://blog-app-k878.onrender.com/categories");
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -59,7 +59,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
     fetchBlogs();
   }
 
-  void showUploadDialog(BuildContext context, String userId, VoidCallback onUploadComplete) {
+  void showUploadDialog(BuildContext context, VoidCallback onUploadComplete) {
     final titleController = TextEditingController();
     final contentController = TextEditingController();
     final categoryController = TextEditingController();
@@ -116,12 +116,14 @@ class _MainBlogPageState extends State<MainBlogPage> {
                   return;
                 }
 
-                final uri =Uri.parse('https://blog-app-k878.onrender.com/submit_blog');
+                final uri = Uri.parse("https://blog-app-k878.onrender.com/submit_blog");
                 final request = http.MultipartRequest('POST', uri);
+
+                // ✅ Fix: user_id must be passed from widget.userId
+                request.fields['user_id'] = widget.userId;
                 request.fields['title'] = title;
                 request.fields['content'] = content;
                 request.fields['category'] = category;
-                request.fields['user_id'] = userId;
 
                 if (imageFile != null) {
                   request.files.add(await http.MultipartFile.fromPath('thumbnail', imageFile!.path));
@@ -149,7 +151,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
   }
 
   Future<void> deleteBlog(int blogId) async {
-    final url = Uri.parse('https://blog-app-k878.onrender.com/delete_blog');
+    final url = Uri.parse("https://blog-app-k878.onrender.com/delete_blog");
     try {
       final response = await http.post(
         url,
@@ -188,7 +190,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => showUploadDialog(context, widget.userId, fetchBlogs),
+        onPressed: () => showUploadDialog(context, fetchBlogs),
         child: const Icon(Icons.add),
       ),
       body: Column(
@@ -232,7 +234,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
                       child: BlogCard(
                         blog: blog,
                         onLike: () async {
-                          final url = Uri.parse('https://blog-app-k878.onrender.com/like_blog');
+                          final url = Uri.parse("https://blog-app-k878.onrender.com/like_blog");
                           final response = await http.post(
                             url,
                             headers: {'Content-Type': 'application/json'},
