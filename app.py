@@ -143,30 +143,27 @@ def reset_password():
 
 @app.route('/submit_blog', methods=['POST'])
 def submit_blog():
-    clear_results()
+    user_id = request.form.get('user_id')
     title = request.form.get('title')
     content = request.form.get('content')
     category = request.form.get('category')
-    user_id = request.form.get('user_id')
-    image = request.files.get('thumbnail')
 
-    if not all([title, content, category]):
-        return jsonify({'status': 'error', 'message': 'Missing required fields'}), 400
+    file = request.files.get('thumbnail')
+    thumbnail_url = None
 
-    filename = None
-    if image:
-        filename = secure_filename(image.filename)
-        image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        image.save(image_path)
+    if file:
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        thumbnail_url = f"https://blog-app-k878.onrender.com/uploads/{filename}"
 
-    cursor.execute(
-        "INSERT INTO blogs (title, content, category, thumbnail, views, user_id) VALUES (%s, %s, %s, %s, %s, %s)",
-        (title, content, category, filename, 0, user_id)
-    )
+    cursor = db.cursor()
+    cursor.execute("INSERT INTO blogs (user_id, title, content, category, thumbnail_url) VALUES (%s, %s, %s, %s, %s)",
+                   (user_id, title, content, category, thumbnail_url))
     db.commit()
 
-    return jsonify({'status': 'success', 'message': 'Blog posted successfully'})
-
+    return jsonify({"status": "success", "message": "Blog submitted successfully"})
+    
 @app.route('/delete_blog', methods=['POST'])
 def delete_blog():
     reconnect_db()
