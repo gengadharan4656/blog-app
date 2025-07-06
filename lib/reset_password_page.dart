@@ -15,6 +15,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   final confirmPasswordController = TextEditingController();
   bool _obscureNew = true;
   bool _obscureConfirm = true;
+  bool isLoading = false;
 
   Future<void> resetPassword() async {
     final newPassword = newPasswordController.text.trim();
@@ -30,28 +31,57 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       return;
     }
 
-    final response = await http.post(
-      Uri.parse("https://blog-app-k878.onrender.com/reset_password"),
+    setState(() => isLoading = true);
 
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'contact': widget.userEmail,
-        'new_password': newPassword,
-      }),
-    );
+    try {
+      final response = await http.post(
+        Uri.parse("https://blog-app-k878.onrender.com/reset_password"),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'contact': widget.userEmail,
+          'new_password': newPassword,
+        }),
+      );
 
-    if (response.statusCode == 200) {
-      _showMessage("Password reset successful!");
-    } else {
-      _showMessage("Failed to reset password.");
+      print("Reset password status: ${response.statusCode}");
+      print("Body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        _showMessage("Password reset successful!", isSuccess: true);
+      } else {
+        _showMessage("Failed to reset password.");
+      }
+    } catch (e) {
+      print("Error: $e");
+      _showMessage("An error occurred. Please try again.");
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 
-  void _showMessage(String message) {
+  void _showMessage(String message, {bool isSuccess = false}) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(content: Text(message)),
+      builder: (_) => AlertDialog(
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              if (isSuccess) Navigator.pop(context); // Go back after success
+            },
+            child: const Text("OK"),
+          ),
+        ],
+      ),
     );
+  }
+
+  @override
+  void dispose() {
+    newPasswordController.dispose();
+    confirmPasswordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -94,11 +124,13 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             ),
             const SizedBox(height: 30),
             ElevatedButton(
-              onPressed: resetPassword,
-              child: const Text("Reset Password"),
+              onPressed: isLoading ? null : resetPassword,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
               ),
+              child: isLoading
+                  ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                  : const Text("Reset Password"),
             ),
           ],
         ),
@@ -106,4 +138,3 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     );
   }
 }
-
