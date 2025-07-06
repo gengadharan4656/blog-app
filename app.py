@@ -42,6 +42,7 @@ def reconnect_db():
             password="PKpqjYoazbjHnybxtqjvxxIFuNpFAfqK",
             database="railway",
             port=25845
+            ssl_disabled=True
         )
         cursor = db.cursor(dictionary=True)
 
@@ -51,11 +52,12 @@ def clear_results():
 
 def send_email_otp(receiver_email, otp):
     sender_email = "factsandblogs247@gmail.com"
-    sender_password = "szus zbci lnfy qvjg"
+    sender_password = "szus zbci lnfy qvjg"  # Your Gmail app password
     msg = MIMEText(f"Your OTP for password reset is: {otp}")
     msg['Subject'] = "Reset Password - OTP Verification"
     msg['From'] = sender_email
     msg['To'] = receiver_email
+
     try:
         server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
         server.login(sender_email, sender_password)
@@ -68,21 +70,24 @@ def send_email_otp(receiver_email, otp):
 
 @app.route('/register', methods=['POST'])
 def register():
-    data = request.form
-    name = data.get("name")
-    email = data.get("email")
-    phone = data.get("phone")
-    password = data.get("password")
+    reconnect_db()
+    data = request.get_json()
+    name = data.get('name')
+    email = data.get('email')
+    phone = data.get('phone')
+    password = data.get('password')
 
-    try:
-        cursor = db.cursor()
-        cursor.execute("INSERT INTO users (name, email, phone, password) VALUES (%s, %s, %s, %s)",
-                       (name, email, phone, password))
-        db.commit()
-        return jsonify({"status": "success", "message": "User registered successfully"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
+    if not name or not email or not phone or not password:
+        return jsonify({'status': 'error', 'message': 'Missing fields'}), 400
 
+    cursor.execute("INSERT INTO users (name, email, phone, password) VALUES (%s, %s, %s, %s)", 
+                   (name, email, phone, password))
+    db.commit()
+
+    cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
+    user_id = cursor.fetchone()[0]
+
+    return jsonify({'status': 'success', 'user_id': user_id}), 200
 @app.route('/login', methods=['POST'])
 def login():
     reconnect_db()
@@ -106,13 +111,15 @@ def send_otp_email():
     clear_results()
     data = request.get_json()
     email = data.get('email')
+
     cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
     if not cursor.fetchone():
         return jsonify({'status': 'error', 'message': 'Email not found'}), 404
 
     otp = str(random.randint(1000, 9999))
     otp_store[email] = otp
-    if send_email_otp(email, otp):
+
+    if send_email_otp(email, otp):  # 🔁 Calls the function below
         return jsonify({'status': 'success', 'message': 'OTP sent'})
     return jsonify({'status': 'error', 'message': 'Failed to send OTP'}), 500
 
@@ -163,7 +170,7 @@ def submit_blog():
     db.commit()
 
     return jsonify({"status": "success", "message": "Blog submitted successfully"})
-    
+
 @app.route('/delete_blog', methods=['POST'])
 def delete_blog():
     reconnect_db()
