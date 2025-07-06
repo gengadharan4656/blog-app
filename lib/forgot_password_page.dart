@@ -24,7 +24,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   Future<void> sendOtp() async {
     final email = emailController.text.trim();
     if (email.isEmpty) {
-      _showMessage("Please enter your email.");
+      _showMessage("❗ Please enter your email.");
       return;
     }
 
@@ -40,19 +40,20 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       print("Response Status: ${response.statusCode}");
       print("Response Body: ${response.body}");
 
-      if (response.statusCode == 200) {
+      final result = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && result['status'] == 'success') {
         setState(() {
           otpSent = true;
           secondsRemaining = 120;
         });
         startTimer();
-        _showMessage("OTP sent to your email.");
+        _showMessage("✅ OTP sent to your email.");
       } else {
-        _showMessage("Failed to send OTP: ${response.body}");
+        _showMessage("❌ Failed to send OTP: ${result['message']}");
       }
     } catch (e) {
-      print("Error: $e");
-      _showMessage("Network error. Please try again.");
+      _showMessage("🚫 Network error. Please try again.");
     } finally {
       setState(() => isLoading = false);
     }
@@ -74,7 +75,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     final enteredOtp = otpControllers.map((c) => c.text).join();
 
     if (enteredOtp.length < 4) {
-      _showMessage("Please enter the complete 4-digit OTP.");
+      _showMessage("❗ Please enter the complete 4-digit OTP.");
       return;
     }
 
@@ -97,10 +98,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           ),
         );
       } else {
-        _showMessage("Invalid OTP. Please try again.");
+        _showMessage("❌ Invalid OTP. Please try again.");
       }
     } catch (e) {
-      _showMessage("Error verifying OTP.");
+      _showMessage("🚫 Error verifying OTP.");
     }
   }
 
@@ -126,7 +127,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         textAlign: TextAlign.center,
         maxLength: 1,
         keyboardType: TextInputType.number,
-        decoration: const InputDecoration(counterText: "", border: OutlineInputBorder()),
+        decoration: const InputDecoration(
+          counterText: "",
+          border: OutlineInputBorder(),
+        ),
         onChanged: (val) {
           if (val.isNotEmpty && index < 3) {
             FocusScope.of(context).nextFocus();
@@ -165,13 +169,25 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             const SizedBox(height: 20),
             TextField(
               controller: emailController,
-              decoration: const InputDecoration(labelText: "Email", border: OutlineInputBorder()),
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: "Email",
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
+            ElevatedButton.icon(
+              icon: const Icon(Icons.send),
               onPressed: (secondsRemaining > 0 || isLoading) ? null : sendOtp,
-              child: isLoading
-                  ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+              label: isLoading
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      ),
+                    )
                   : Text(secondsRemaining > 0 ? timerText : "Send OTP"),
             ),
             if (otpSent) ...[
@@ -183,8 +199,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 children: List.generate(4, (index) => buildOtpField(index)),
               ),
               const SizedBox(height: 20),
-              ElevatedButton(onPressed: verifyOtp, child: const Text("Verify OTP")),
-            ]
+              ElevatedButton.icon(
+                icon: const Icon(Icons.verified),
+                label: const Text("Verify OTP"),
+                onPressed: verifyOtp,
+              ),
+            ],
           ],
         ),
       ),
