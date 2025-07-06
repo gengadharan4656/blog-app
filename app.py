@@ -207,11 +207,6 @@ def search():
 
     return jsonify({'predefined': predefined_results, 'user': user_results})
 
-                               
-@app.route('/uploads/<filename>')
-def serve_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
 @app.route('/categories')
 def get_categories():
     reconnect_db()
