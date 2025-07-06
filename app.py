@@ -42,10 +42,14 @@ def reconnect_db():
         )
         cursor = db.cursor(dictionary=True)
 
-def clear_results():
-    while cursor.nextset():
-        pass
+def clear_results(cursor):
+    try:
+        while cursor.nextset():
+            pass
+    except Exception as e:
+        print(f"Error clearing results: {e}")
 
+@app.route('/send_otp_email', methods=['POST'])
 def send_email_otp(receiver_email, otp):
     sender_email = "factsandblogs247@gmail.com"
     sender_password = "szus zbci lnfy qvjg"
