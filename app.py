@@ -147,9 +147,6 @@ def verify_otp():
         return jsonify({'status': 'success', 'message': 'OTP verified'})
     return jsonify({'status': 'error', 'message': 'Invalid OTP'}), 400
 
-
-
-
 @app.route('/submit_blog', methods=['POST'])
 def submit_blog():
     reconnect_db()
@@ -212,6 +209,24 @@ def search():
         user_results.append(blog)
 
     return jsonify({'predefined': predefined_results, 'user': user_results})
+
+@app.route('/suggest_blogs', methods=['GET'])
+def suggest_blogs():
+    reconnect_db()
+    clear_results(cursor)
+
+    try:
+        cursor.execute("SELECT * FROM blogs ORDER BY views DESC LIMIT 5")
+        blogs = cursor.fetchall()
+
+        for blog in blogs:
+            blog['thumbnail_url'] = f"/uploads/{blog['thumbnail']}" if blog.get('thumbnail') else None
+
+        return jsonify(blogs)
+
+    except Exception as e:
+        print("Suggest Blog Error:", e)
+        return jsonify({'status': 'error', 'message': 'Failed to fetch suggested blogs'}), 500
 
 @app.route('/categories')
 def get_categories():
