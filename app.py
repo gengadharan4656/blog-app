@@ -189,8 +189,11 @@ def search():
         or query in blog.get('category', '').lower()
     ]
 
-    cursor.execute("SELECT * FROM blogs WHERE title LIKE %s OR content LIKE %s OR category LIKE %s ORDER BY created_at DESC",
-                   (f'%{query}%', f'%{query}%', f'%{query}%'))
+    cursor.execute("""
+        SELECT * FROM blogs 
+        WHERE title LIKE %s OR content LIKE %s OR category LIKE %s 
+        ORDER BY created_at DESC
+    """, (f'%{query}%', f'%{query}%', f'%{query}%'))
     blogs = cursor.fetchall()
 
     user_results = []
@@ -205,7 +208,8 @@ def search():
             if cursor.fetchone():
                 blog['liked'] = True
 
-       blog['thumbnail_url'] = f"/uploads/{blog.get('thumbnail', '')}" if blog.get('thumbnail') else None
+        # ✅ Fix indentation here
+        blog['thumbnail_url'] = f"/uploads/{blog.get('thumbnail', '')}" if blog.get('thumbnail') else None
 
         user_results.append(blog)
 
