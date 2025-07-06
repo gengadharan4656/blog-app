@@ -19,6 +19,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   bool otpSent = false;
   int secondsRemaining = 0;
   Timer? countdownTimer;
+  bool isLoading = false;
 
   Future<void> sendOtp() async {
     final email = emailController.text.trim();
@@ -27,21 +28,33 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       return;
     }
 
-    final response = await http.post(
-      Uri.parse("https://blog-app-k878.onrender.com/send_otp_email"),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email}),
-    );
+    setState(() => isLoading = true);
 
-    if (response.statusCode == 200) {
-      setState(() {
-        otpSent = true;
-        secondsRemaining = 120;
-      });
-      startTimer();
-      _showMessage("OTP sent to your email.");
-    } else {
-      _showMessage("Failed to send OTP.");
+    try {
+      final response = await http.post(
+        Uri.parse("https://blog-app-k878.onrender.com/send_otp_email"),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      print("Response Status: ${response.statusCode}");
+      print("Response Body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        setState(() {
+          otpSent = true;
+          secondsRemaining = 120;
+        });
+        startTimer();
+        _showMessage("OTP sent to your email.");
+      } else {
+        _showMessage("Failed to send OTP: ${response.body}");
+      }
+    } catch (e) {
+      print("Error: $e");
+      _showMessage("Network error. Please try again.");
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 
@@ -61,33 +74,47 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     final enteredOtp = otpControllers.map((c) => c.text).join();
 
     if (enteredOtp.length < 4) {
-      _showMessage("Please enter the complete OTP.");
+      _showMessage("Please enter the complete 4-digit OTP.");
       return;
     }
 
-    final response = await http.post(
-      Uri.parse("https://blog-app-k878.onrender.com/verify_otp"),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email, 'otp': enteredOtp}),
-    );
-
-    final result = jsonDecode(response.body);
-    if (response.statusCode == 200 && result['status'] == 'success') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ResetPasswordPage(userEmail: email),
-        ),
+    try {
+      final response = await http.post(
+        Uri.parse("https://blog-app-k878.onrender.com/verify_otp"),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'otp': enteredOtp}),
       );
-    } else {
-      _showMessage("Invalid OTP. Please try again.");
+
+      print("OTP Verify Response: ${response.statusCode}");
+      print("Body: ${response.body}");
+
+      final result = jsonDecode(response.body);
+      if (response.statusCode == 200 && result['status'] == 'success') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ResetPasswordPage(userEmail: email),
+          ),
+        );
+      } else {
+        _showMessage("Invalid OTP. Please try again.");
+      }
+    } catch (e) {
+      _showMessage("Error verifying OTP.");
     }
   }
 
   void _showMessage(String message) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(content: Text(message)),
+      builder: (_) => AlertDialog(
+        content: Text(message),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK"))
+        ],
+      ),
     );
   }
 
@@ -142,8 +169,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: secondsRemaining > 0 ? null : sendOtp,
-              child: Text(secondsRemaining > 0 ? timerText : "Send OTP"),
+              onPressed: (secondsRemaining > 0 || isLoading) ? null : sendOtp,
+              child: isLoading
+                  ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                  : Text(secondsRemaining > 0 ? timerText : "Send OTP"),
             ),
             if (otpSent) ...[
               const SizedBox(height: 30),
