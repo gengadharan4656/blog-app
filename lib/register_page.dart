@@ -15,6 +15,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final emailController = TextEditingController();
   final phoneController = TextEditingController();
   final passwordController = TextEditingController();
+
   bool _obscurePassword = true;
   bool _isLoading = false;
 
@@ -22,21 +23,16 @@ class _RegisterPageState extends State<RegisterPage> {
     final name = nameController.text.trim();
     final email = emailController.text.trim();
     final phone = phoneController.text.trim();
-    final password = passwordController.text;
+    final password = passwordController.text.trim();
 
     if (name.isEmpty || email.isEmpty || phone.isEmpty || password.isEmpty) {
-      showDialog(
-        context: context,
-        builder: (_) => const AlertDialog(
-          content: Text("Please fill all fields."),
-        ),
-      );
+      _showDialog("Please fill all fields.");
       return;
     }
 
     setState(() => _isLoading = true);
 
-    final url = Uri.parse('https://blog-app-k878.onrender.com/register');  
+    final url = Uri.parse('https://blog-app-k878.onrender.com/register');
 
     try {
       final response = await http.post(
@@ -50,34 +46,33 @@ class _RegisterPageState extends State<RegisterPage> {
         }),
       );
 
+      final responseData = jsonDecode(response.body);
       setState(() => _isLoading = false);
 
-      final responseData = jsonDecode(response.body);
       if (response.statusCode == 200 && responseData['status'] == 'success') {
         final String userId = responseData['user_id'].toString();
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => MainBlogPage(userId: userId), // ✅ Pass as String
+            builder: (_) => MainBlogPage(userId: userId),
           ),
         );
       } else {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            content: Text("Error: ${responseData['message']}"),
-          ),
-        );
+        _showDialog("Error: ${responseData['message'] ?? 'Unknown error'}");
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          content: Text("Server error: $e"),
-        ),
-      );
+      _showDialog("Server error: $e");
     }
+  }
+
+  void _showDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        content: Text(message),
+      ),
+    );
   }
 
   @override
@@ -104,53 +99,13 @@ class _RegisterPageState extends State<RegisterPage> {
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 20),
-                  TextField(
-                    controller: nameController,
-                    decoration: InputDecoration(
-                      labelText: "Name",
-                      prefixIcon: const Icon(Icons.person),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
+                  _buildTextField(nameController, "Name", Icons.person),
                   const SizedBox(height: 15),
-                  TextField(
-                    controller: emailController,
-                    decoration: InputDecoration(
-                      labelText: "Email",
-                      prefixIcon: const Icon(Icons.email),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
+                  _buildTextField(emailController, "Email", Icons.email),
                   const SizedBox(height: 15),
-                  TextField(
-                    controller: phoneController,
-                    decoration: InputDecoration(
-                      labelText: "Phone",
-                      prefixIcon: const Icon(Icons.phone),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    keyboardType: TextInputType.phone,
-                  ),
+                  _buildTextField(phoneController, "Phone", Icons.phone, keyboardType: TextInputType.phone),
                   const SizedBox(height: 15),
-                  TextField(
-                    controller: passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: "Password",
-                      prefixIcon: const Icon(Icons.lock),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                      ),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
+                  _buildPasswordField(),
                   const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: _isLoading ? null : registerUser,
@@ -168,6 +123,39 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String label, IconData icon,
+      {TextInputType keyboardType = TextInputType.text}) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  Widget _buildPasswordField() {
+    return TextField(
+      controller: passwordController,
+      obscureText: _obscurePassword,
+      decoration: InputDecoration(
+        labelText: "Password",
+        prefixIcon: const Icon(Icons.lock),
+        suffixIcon: IconButton(
+          icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+          onPressed: () {
+            setState(() {
+              _obscurePassword = !_obscurePassword;
+            });
+          },
+        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
