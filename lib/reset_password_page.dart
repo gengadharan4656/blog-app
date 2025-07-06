@@ -38,7 +38,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         Uri.parse("https://blog-app-k878.onrender.com/reset_password"),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'contact': widget.userEmail,
+          'email': widget.userEmail,  // ✅ fixed key from 'contact' to 'email'
           'new_password': newPassword,
         }),
       );
