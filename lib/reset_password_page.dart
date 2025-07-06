@@ -26,6 +26,11 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       return;
     }
 
+    if (newPassword.length < 6) {
+      _showMessage("Password must be at least 6 characters.");
+      return;
+    }
+
     if (newPassword != confirmPassword) {
       _showMessage("Passwords do not match.");
       return;
@@ -38,7 +43,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         Uri.parse("https://blog-app-k878.onrender.com/reset_password"),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'email': widget.userEmail,  // ✅ fixed key from 'contact' to 'email'
+          'email': widget.userEmail, // ✅ Correct key
           'new_password': newPassword,
         }),
       );
@@ -46,10 +51,12 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       print("Reset password status: ${response.statusCode}");
       print("Body: ${response.body}");
 
-      if (response.statusCode == 200) {
+      final result = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && result['status'] == 'success') {
         _showMessage("Password reset successful!", isSuccess: true);
       } else {
-        _showMessage("Failed to reset password.");
+        _showMessage(result['message'] ?? "Failed to reset password.");
       }
     } catch (e) {
       print("Error: $e");
@@ -67,8 +74,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              if (isSuccess) Navigator.pop(context); // Go back after success
+              Navigator.pop(context); // close dialog
+              if (isSuccess && mounted) {
+                Navigator.pop(context); // go back to login or forgot page
+              }
             },
             child: const Text("OK"),
           ),
