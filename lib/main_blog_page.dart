@@ -85,7 +85,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
     }
   }
 
-  Future<void> toggleLike(String blogId) async {
+  Future<void> toggleLike(String blogId, int index) async {
     final url = Uri.parse("https://blog-app-k878.onrender.com/like_blog");
     final response = await http.post(
       url,
@@ -94,7 +94,11 @@ class _MainBlogPageState extends State<MainBlogPage> {
     );
 
     if (response.statusCode == 200) {
-      fetchBlogs();
+      final data = json.decode(response.body);
+      setState(() {
+        blogs[index]['liked'] = data['liked'];
+        blogs[index]['likes'] = data['like_count'];
+      });
     } else {
       print("Failed to like blog");
     }
@@ -290,7 +294,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
                                         Text('${blog['views'] ?? 0}', style: const TextStyle(color: Colors.grey)),
                                         const SizedBox(width: 12),
                                         GestureDetector(
-                                          onTap: () => toggleLike(blog['id'].toString()),
+                                          onTap: () => toggleLike(blog['id'].toString(), index),
                                           child: Icon(
                                             blog['liked'] == true ? Icons.favorite : Icons.favorite_border,
                                             size: 18,
