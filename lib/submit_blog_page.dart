@@ -1,4 +1,3 @@
-// Updated SubmitBlogPage.dart with optional thumbnail and validations
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
@@ -69,14 +68,14 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
     if (_imageBytes != null && _imageName != null) {
       request.files.add(http.MultipartFile.fromBytes('thumbnail', _imageBytes!, filename: _imageName));
     } else if (_imageFile != null) {
-      request.files.add(await http.MultipartFile.fromPath('thumbnail', _imageFile!.path, filename: _imageName));
+      request.files.add(await http.MultipartFile.fromPath('thumbnail', _imageFile!.path));
     }
 
     try {
       final response = await request.send();
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Blog uploaded successfully")),
+          const SnackBar(content: Text("✅ Blog uploaded successfully")),
         );
         titleController.clear();
         contentController.clear();
@@ -88,23 +87,32 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Upload failed: \${response.statusCode}")),
+          SnackBar(content: Text("❌ Upload failed (${response.statusCode})")),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: \$e")),
+        SnackBar(content: Text("Error: $e")),
       );
     }
   }
 
   Widget imagePreview() {
     if (_imageFile != null) {
-      return Image.file(_imageFile!, height: 150);
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.file(_imageFile!, height: 150),
+      );
     } else if (_imageBytes != null) {
-      return Image.memory(_imageBytes!, height: 150);
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.memory(_imageBytes!, height: 150),
+      );
     } else {
-      return const Text("No image selected", style: TextStyle(color: Colors.grey));
+      return const Text(
+        "No image selected",
+        style: TextStyle(color: Colors.grey, fontSize: 14),
+      );
     }
   }
 
@@ -133,15 +141,19 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
                 label: const Text("Pick Thumbnail (Optional)"),
                 onPressed: pickImage,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               imagePreview(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 30),
               ElevatedButton.icon(
                 icon: const Icon(Icons.send),
                 label: const Text("Submit Blog"),
                 onPressed: submitBlog,
-                style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-              )
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+              ),
             ],
           ),
         ),
