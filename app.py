@@ -48,8 +48,7 @@ def clear_results(cursor):
             pass
     except Exception as e:
         print(f"Error clearing results: {e}")
-
-@app.route('/send_otp_email', methods=['POST'])
+        
 def send_email_otp(receiver_email, otp):
     sender_email = "factsandblogs247@gmail.com"
     sender_password = "szus zbci lnfy qvjg"
@@ -92,20 +91,30 @@ def register():
 @app.route('/login', methods=['POST'])
 def login():
     reconnect_db()
-    clear_results()
+    
     data = request.get_json()
     email_or_phone = data.get('email_or_phone')
     password = data.get('password')
+
     if not email_or_phone or not password:
         return jsonify({'status': 'error', 'message': 'Missing credentials'}), 400
 
-    cursor.execute("SELECT * FROM users WHERE (email = %s OR phone = %s) AND password = %s",
-                   (email_or_phone, email_or_phone, password))
+    cursor = db.cursor(dictionary=True)  # Important: use dictionary=True for 'user['id']'
+    
+    cursor.execute(
+        "SELECT * FROM users WHERE (email = %s OR phone = %s) AND password = %s",
+        (email_or_phone, email_or_phone, password)
+    )
+    
     user = cursor.fetchone()
+
+    clear_results(cursor)  # ✅ Pass the cursor here
+
     if user:
         return jsonify({'status': 'success', 'message': 'Login successful', 'user_id': user['id']})
-    return jsonify({'status': 'error', 'message': 'Invalid credentials'}), 401
-
+    else:
+        return jsonify({'status': 'error', 'message': 'Invalid credentials'}), 401
+        
 @app.route('/send_otp_email', methods=['POST'])
 def send_otp_email():
     reconnect_db()
@@ -127,10 +136,13 @@ def send_otp_email():
 @app.route('/verify_otp', methods=['POST'])
 def verify_otp():
     reconnect_db()
-    clear_results()
+    cursor = db.cursor(dictionary=True)
+    clear_results(cursor)
+
     data = request.get_json()
     email = data.get('email')
     entered_otp = data.get('otp')
+
     if otp_store.get(email) == entered_otp:
         return jsonify({'status': 'success', 'message': 'OTP verified'})
     return jsonify({'status': 'error', 'message': 'Invalid OTP'}), 400
@@ -138,16 +150,24 @@ def verify_otp():
 @app.route('/reset_password', methods=['POST'])
 def reset_password():
     reconnect_db()
-    clear_results()
+    cursor = db.cursor()
+    clear_results(cursor)
+
     data = request.get_json()
     email = data.get('email')
     new_password = data.get('new_password')
+
     cursor.execute("UPDATE users SET password = %s WHERE email = %s", (new_password, email))
     db.commit()
-    otp_store.pop(email, None)
+    clear_results(cursor)
+
+    otp_store.pop(email, None)  # Clear OTP from store
+
     if cursor.rowcount == 0:
         return jsonify({'status': 'error', 'message': 'Email not found'}), 404
+
     return jsonify({'status': 'success', 'message': 'Password updated'})
+
 
 @app.route('/submit_blog', methods=['POST'])
 def submit_blog():
