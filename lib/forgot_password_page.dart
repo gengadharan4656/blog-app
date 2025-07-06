@@ -70,40 +70,44 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     });
   }
 
-  void verifyOtp() async {
-    final email = emailController.text.trim();
-    final enteredOtp = otpControllers.map((c) => c.text).join();
+void verifyOtp() async {
+  final email = emailController.text.trim();
+  final enteredOtp = otpControllers.map((c) => c.text).join();
 
-    if (enteredOtp.length < 4) {
-      _showMessage("❗ Please enter the complete 4-digit OTP.");
-      return;
-    }
-
-    try {
-      final response = await http.post(
-        Uri.parse("https://blog-app-k878.onrender.com/verify_otp"),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'otp': enteredOtp}),
-      );
-
-      print("OTP Verify Response: ${response.statusCode}");
-      print("Body: ${response.body}");
-
-      final result = jsonDecode(response.body);
-      if (response.statusCode == 200 && result['status'] == 'success') {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ResetPasswordPage(userEmail: email),
-          ),
-        );
-      } else {
-        _showMessage("❌ Invalid OTP. Please try again.");
-      }
-    } catch (e) {
-      _showMessage("🚫 Error verifying OTP.");
-    }
+  if (enteredOtp.length < 4) {
+    _showMessage("❗ Please enter the complete 4-digit OTP.");
+    return;
   }
+
+  try {
+    final response = await http.post(
+      Uri.parse("https://blog-app-k878.onrender.com/verify_otp"),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email, 'otp': enteredOtp}),
+    );
+
+    print("🔐 OTP Verify Response Code: ${response.statusCode}");
+    print("🔐 OTP Verify Response Body: ${response.body}");
+
+    final result = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && result['status'] == 'success') {
+      if (!mounted) return; // Ensure widget is still in context
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ResetPasswordPage(userEmail: email),
+        ),
+      );
+    } else {
+      _showMessage("❌ Invalid OTP. Please try again.");
+    }
+  } catch (e) {
+    print("❌ OTP Verify Exception: $e");
+    _showMessage("🚫 Error verifying OTP. Check your internet.");
+  }
+}
+
 
   void _showMessage(String message) {
     showDialog(
