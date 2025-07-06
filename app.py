@@ -8,10 +8,6 @@ import os
 import json
 from werkzeug.utils import secure_filename
 
-from flask_cors import CORS
-
-from flask_cors import CORS
-
 app = Flask(__name__)
 CORS(app, origins=["https://blog-app-9a745.web.app"], supports_credentials=True)
 
@@ -53,7 +49,7 @@ def clear_results():
 
 def send_email_otp(receiver_email, otp):
     sender_email = "factsandblogs247@gmail.com"
-    sender_password = "szus zbci lnfy qvjg"  # Your Gmail app password
+    sender_password = "szus zbci lnfy qvjg"
     msg = MIMEText(f"Your OTP for password reset is: {otp}")
     msg['Subject'] = "Reset Password - OTP Verification"
     msg['From'] = sender_email
@@ -86,9 +82,10 @@ def register():
     db.commit()
 
     cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
-    user_id = cursor.fetchone()[0]
+    user_id = cursor.fetchone()['id']
 
     return jsonify({'status': 'success', 'user_id': user_id}), 200
+
 @app.route('/login', methods=['POST'])
 def login():
     reconnect_db()
@@ -120,7 +117,7 @@ def send_otp_email():
     otp = str(random.randint(1000, 9999))
     otp_store[email] = otp
 
-    if send_email_otp(email, otp):  # 🔁 Calls the function below
+    if send_email_otp(email, otp):
         return jsonify({'status': 'success', 'message': 'OTP sent'})
     return jsonify({'status': 'error', 'message': 'Failed to send OTP'}), 500
 
@@ -151,61 +148,103 @@ def reset_password():
 
 @app.route('/submit_blog', methods=['POST'])
 def submit_blog():
+    reconnect_db()
     user_id = request.form.get('user_id')
     title = request.form.get('title')
     content = request.form.get('content')
     category = request.form.get('category')
 
     file = request.files.get('thumbnail')
-    thumbnail_url = None
-
-    if file:
+    thumbnail = None
+    if file and file.filename:
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
-        thumbnail_url = f"https://blog-app-k878.onrender.com/uploads/{filename}"
+        thumbnail = filename
 
-    cursor = db.cursor()
-    cursor.execute("INSERT INTO blogs (user_id, title, content, category, thumbnail_url) VALUES (%s, %s, %s, %s, %s)",
-                   (user_id, title, content, category, thumbnail_url))
+    cursor.execute("INSERT INTO blogs (user_id, title, content, category, thumbnail) VALUES (%s, %s, %s, %s, %s)",
+                   (user_id, title, content, category, thumbnail))
     db.commit()
 
-    return jsonify({"status": "success", "message": "Blog submitted successfully"})
+    return jsonify({'status': 'success', 'message': 'Blog submitted successfully'})
 
-@app.route('/suggested')
-def suggested_blogs():
+@app.route('/search')
+def search():
+    reconnect_db()
+    user_id = request.args.get('user_id')
+    query = request.args.get('q', '').lower()
+
+    with open('predefined_blogs.json') as f:
+        predefined = json.load(f)
+
+    predefined_results = [
+        blog for blog in predefined
+        if query in blog.get('title', '').lower()
+        or query in blog.get('content', '').lower()
+        or query in blog.get('category', '').lower()
+    ]
+
+    cursor.execute("SELECT * FROM blogs WHERE title LIKE %s OR content LIKE %s OR category LIKE %s ORDER BY created_at DESC",
+                   (f'%{query}%', f'%{query}%', f'%{query}%'))
+    blogs = cursor.fetchall()
+
+    user_results = []
+    for blog in blogs:
+        cursor.execute("SELECT name FROM users WHERE id = %s", (blog['user_id'],))
+        user = cursor.fetchone()
+        blog['username'] = user['name'] if user else 'Unknown'
+
+        blog['liked'] = False
+        if user_id:
+            cursor.execute("SELECT * FROM likes WHERE user_id = %s AND blog_id = %s", (user_id, blog['id']))
+            if cursor.fetchone():
+                blog['liked'] = True
+
+        user_results.append(blog)
+
+    return jsonify({'predefined': predefined_results, 'user': user_results})
+
+@app.route('/uploads/<filename>')
+def serve_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route('/categories')
+def get_categories():
     reconnect_db()
     clear_results()
+    cursor.execute("SELECT DISTINCT category FROM blogs")
+    rows = cursor.fetchall()
+    categories = [row['category'] for row in rows if row['category']]
+    return jsonify(categories)
 
-    cursor.execute("""
-        SELECT id, user_id, title, content, category, created_at, likes, views, thumbnail 
-        FROM blogs ORDER BY created_at DESC LIMIT 10
-    """)
-    blogs = cursor.fetchall()
-    result = []
+@app.route('/like_blog', methods=['POST'])
+def like_blog():
+    reconnect_db()
+    data = request.json
+    blog_id = data.get('blog_id')
+    user_id = data.get('user_id')
 
-    for row in blogs:
-        blog = {
-            'id': row[0],
-            'user_id': row[1],
-            'title': row[2],
-            'content': row[3],
-            'category': row[4],
-            'created_at': row[5].isoformat() if row[5] else '',
-            'likes': row[6],
-            'views': row[7],
-            'thumbnail': row[8]
-        }
+    try:
+        cursor.execute("SELECT * FROM likes WHERE blog_id = %s AND user_id = %s", (blog_id, user_id))
+        existing_like = cursor.fetchone()
 
-        cursor.execute("SELECT username FROM users WHERE id = %s", (row[1],))
-        user = cursor.fetchone()
-        blog['username'] = user[0] if user else 'Anonymous'
+        if existing_like:
+            cursor.execute("DELETE FROM likes WHERE blog_id = %s AND user_id = %s", (blog_id, user_id))
+            db.commit()
+            action = 'unliked'
+        else:
+            cursor.execute("INSERT INTO likes (blog_id, user_id) VALUES (%s, %s)", (blog_id, user_id))
+            db.commit()
+            action = 'liked'
 
-        result.append(blog)
+        cursor.execute("SELECT COUNT(*) as count FROM likes WHERE blog_id = %s", (blog_id,))
+        like_count = cursor.fetchone()['count']
 
-    return jsonify(result)
+        return jsonify({'success': True, 'action': action, 'likes': like_count})
 
-
+    except Exception as e:
+        print("Error in like_blog:", str(e))
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/delete_blog', methods=['POST'])
 def delete_blog():
@@ -226,126 +265,6 @@ def delete_blog():
     cursor.execute("DELETE FROM blogs WHERE id = %s", (blog_id,))
     db.commit()
     return jsonify({'status': 'success', 'message': 'Blog deleted'})
-
-@app.route('/like_blog', methods=['POST'])
-def like_blog():
-    data = request.json
-    blog_id = data.get('blog_id')
-    user_id = data.get('user_id')
-
-    try:
-        cursor = db.cursor()
-
-        cursor.execute("SELECT * FROM likes WHERE blog_id = %s AND user_id = %s", (blog_id, user_id))
-        existing_like = cursor.fetchone()
-
-        if existing_like:
-            cursor.execute("DELETE FROM likes WHERE blog_id = %s AND user_id = %s", (blog_id, user_id))
-            db.commit()
-            action = 'unliked'
-        else:
-            cursor.execute("INSERT INTO likes (blog_id, user_id) VALUES (%s, %s)", (blog_id, user_id))
-            db.commit()
-            action = 'liked'
-
-        cursor.execute("SELECT COUNT(*) FROM likes WHERE blog_id = %s", (blog_id,))
-        like_count = cursor.fetchone()[0]
-
-        return jsonify({'success': True, 'action': action, 'likes': like_count})
-
-    except Exception as e:
-        print("Error in like_blog:", str(e))
-        return jsonify({'success': False, 'error': str(e)})
-
-    finally:
-        cursor.close()
-
-@app.route('/is_liked')
-def is_liked():
-    blog_id = request.args.get('blog_id')
-    user_id = request.args.get('user_id')
-    cursor = db.cursor()
-    cursor.execute("SELECT * FROM likes WHERE blog_id = %s AND user_id = %s", (blog_id, user_id))
-    liked = cursor.fetchone() is not None
-    return jsonify({'liked': liked})
-
-@app.route('/search')
-def search():
-    user_id = request.args.get('user_id')
-    query = request.args.get('q', '').lower()
-
-    # Fetch predefined blogs
-    with open('predefined_blogs.json') as f:
-        predefined = json.load(f)
-
-    predefined_results = [
-        blog for blog in predefined
-        if query in blog.get('title', '').lower()
-        or query in blog.get('content', '').lower()
-        or query in blog.get('category', '').lower()
-    ]
-
-    # Fetch user blogs
-    cursor.execute("SELECT * FROM blogs WHERE title LIKE %s OR content LIKE %s OR category LIKE %s ORDER BY created_at DESC",
-                   (f'%{query}%', f'%{query}%', f'%{query}%'))
-    blogs = cursor.fetchall()
-
-    user_results = []
-    for blog in blogs:
-        cursor.execute("SELECT username FROM users WHERE id = %s", (blog['user_id'],))
-        user = cursor.fetchone()
-        blog['username'] = user['username'] if user else 'Unknown'
-        blog['liked'] = False
-
-        if user_id:
-            cursor.execute("SELECT * FROM likes WHERE user_id = %s AND blog_id = %s", (user_id, blog['id']))
-            if cursor.fetchone():
-                blog['liked'] = True
-
-        user_results.append(blog)
-
-    return jsonify({'predefined': predefined_results, 'user': user_results})
-
-
-@app.route('/get_blogs')
-def get_blogs():
-    reconnect_db()
-    clear_results()
-    user_id = request.args.get('user_id', type=int)
-    cursor.execute("""
-        SELECT blogs.id, blogs.title, blogs.content, blogs.category, blogs.thumbnail, blogs.views, blogs.likes,
-               blogs.user_id, users.name AS username
-        FROM blogs
-        JOIN users ON blogs.user_id = users.id
-        ORDER BY blogs.id DESC
-    """)
-    blogs = cursor.fetchall()
-    for blog in blogs:
-        if blog['thumbnail']:
-            blog['thumbnail'] = f"{request.host_url}uploads/{blog['thumbnail']}"
-        blog['liked'] = False
-    return jsonify(blogs)
-
-@app.route('/view_blog/<int:blog_id>', methods=['POST'])
-def view_blog(blog_id):
-    reconnect_db()
-    clear_results()
-    cursor.execute("UPDATE blogs SET views = views + 1 WHERE id = %s", (blog_id,))
-    db.commit()
-    return jsonify({'status': 'success', 'message': 'View counted'})
-
-@app.route('/categories')
-def get_categories():
-    reconnect_db()
-    clear_results()
-    cursor.execute("SELECT DISTINCT category FROM blogs")
-    rows = cursor.fetchall()
-    categories = [row['category'] for row in rows if row['category']]
-    return jsonify(categories)
-
-@app.route('/uploads/<filename>')
-def serve_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
