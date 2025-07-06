@@ -39,8 +39,8 @@ class _FullBlogPageState extends State<FullBlogPage> {
       if (response.statusCode == 200) {
         final res = jsonDecode(response.body);
         setState(() {
-          likes = res['likes'] ?? likes;
           liked = res['action'] == 'liked';
+          likes = res['likes'] ?? likes;
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -90,29 +90,29 @@ class _FullBlogPageState extends State<FullBlogPage> {
             style: const TextStyle(fontSize: 16, height: 1.6),
           ),
           const SizedBox(height: 30),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            decoration: BoxDecoration(
-              color: liked ? Colors.red.shade50 : Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                GestureDetector(
-                  onTap: toggleLike,
-                  child: Icon(
+          GestureDetector(
+            onTap: toggleLike,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+              decoration: BoxDecoration(
+                color: liked ? Colors.red.shade50 : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
                     liked ? Icons.favorite : Icons.favorite_border,
                     color: Colors.red,
-                    size: 28,
+                    size: 26,
                   ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  "$likes Like${likes == 1 ? '' : 's'}",
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Text(
+                    "$likes Like${likes == 1 ? '' : 's'}",
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -121,7 +121,7 @@ class _FullBlogPageState extends State<FullBlogPage> {
               "By ${blog['username'] ?? 'Anonymous'}",
               style: const TextStyle(fontSize: 14, color: Colors.black54),
             ),
-          )
+          ),
         ],
       ),
     );
