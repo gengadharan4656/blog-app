@@ -16,6 +16,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
   List<dynamic> blogs = [];
   List<String> categories = [];
   String searchQuery = '';
+  final searchController = TextEditingController();
 
   @override
   void initState() {
@@ -33,7 +34,13 @@ class _MainBlogPageState extends State<MainBlogPage> {
         final predefined = List<Map<String, dynamic>>.from(data['predefined'] ?? []);
         final userBlogs = List<Map<String, dynamic>>.from(data['user'] ?? []);
         final combinedBlogs = [...predefined, ...userBlogs];
-        combinedBlogs.sort((a, b) => DateTime.parse(b['created_at']).compareTo(DateTime.parse(a['created_at'])));
+
+        combinedBlogs.sort((a, b) {
+          final aDate = DateTime.tryParse(a['created_at'] ?? '') ?? DateTime.now();
+          final bDate = DateTime.tryParse(b['created_at'] ?? '') ?? DateTime.now();
+          return bDate.compareTo(aDate);
+        });
+
         setState(() => blogs = combinedBlogs);
       }
     } catch (e) {
@@ -55,7 +62,9 @@ class _MainBlogPageState extends State<MainBlogPage> {
   }
 
   void onSearch(String query) {
-    setState(() => searchQuery = query);
+    setState(() {
+      searchQuery = query;
+    });
     fetchBlogs();
   }
 
@@ -208,11 +217,15 @@ class _MainBlogPageState extends State<MainBlogPage> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: TextField(
+              controller: searchController,
               decoration: InputDecoration(
                 hintText: 'Search blogs...',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
+              onChanged: (value) {
+                searchQuery = value;
+              },
               onSubmitted: onSearch,
             ),
           ),
