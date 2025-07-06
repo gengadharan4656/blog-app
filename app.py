@@ -25,7 +25,8 @@ db = mysql.connector.connect(
     user="root",
     password="PKpqjYoazbjHnybxtqjvxxIFuNpFAfqK",
     database="railway",
-    port=25845
+    port=25845,
+    ssl_disabled=True
 )
 cursor = db.cursor(dictionary=True)
 otp_store = {}
@@ -41,7 +42,7 @@ def reconnect_db():
             user="root",
             password="PKpqjYoazbjHnybxtqjvxxIFuNpFAfqK",
             database="railway",
-            port=25845
+            port=25845,
             ssl_disabled=True
         )
         cursor = db.cursor(dictionary=True)
