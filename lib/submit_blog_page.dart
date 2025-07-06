@@ -1,3 +1,4 @@
+// Updated SubmitBlogPage.dart with optional thumbnail and validations
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
@@ -58,12 +59,12 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
     }
 
     final uri = Uri.parse('https://blog-app-k878.onrender.com/submit_blog');
-
     final request = http.MultipartRequest('POST', uri);
+
+    request.fields['user_id'] = widget.userId;
     request.fields['title'] = title;
     request.fields['content'] = content;
     request.fields['category'] = category;
-    request.fields['user_id'] = widget.userId;
 
     if (_imageBytes != null && _imageName != null) {
       request.files.add(http.MultipartFile.fromBytes('thumbnail', _imageBytes!, filename: _imageName));
@@ -74,7 +75,9 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
     try {
       final response = await request.send();
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Blog uploaded successfully")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Blog uploaded successfully")),
+        );
         titleController.clear();
         contentController.clear();
         categoryController.clear();
@@ -85,12 +88,12 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Upload failed: ${response.statusCode}")),
+          SnackBar(content: Text("Upload failed: \${response.statusCode}")),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
+        SnackBar(content: Text("Error: \$e")),
       );
     }
   }
@@ -101,7 +104,7 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
     } else if (_imageBytes != null) {
       return Image.memory(_imageBytes!, height: 150);
     } else {
-      return const SizedBox.shrink();
+      return const Text("No image selected", style: TextStyle(color: Colors.grey));
     }
   }
 
@@ -113,6 +116,7 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
         padding: const EdgeInsets.all(16),
         child: SingleChildScrollView(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextField(controller: titleController, decoration: const InputDecoration(labelText: "Title")),
               const SizedBox(height: 10),
@@ -123,10 +127,10 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
               ),
               const SizedBox(height: 10),
               TextField(controller: categoryController, decoration: const InputDecoration(labelText: "Category")),
-              const SizedBox(height: 10),
+              const SizedBox(height: 20),
               ElevatedButton.icon(
                 icon: const Icon(Icons.image),
-                label: const Text("Pick Image"),
+                label: const Text("Pick Thumbnail (Optional)"),
                 onPressed: pickImage,
               ),
               const SizedBox(height: 10),
@@ -136,6 +140,7 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
                 icon: const Icon(Icons.send),
                 label: const Text("Submit Blog"),
                 onPressed: submitBlog,
+                style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
               )
             ],
           ),
