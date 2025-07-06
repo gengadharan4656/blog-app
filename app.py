@@ -205,7 +205,8 @@ def search():
             if cursor.fetchone():
                 blog['liked'] = True
 
-        blog['thumbnail_url'] = f"/uploads/{blog['thumbnail']}" if blog['thumbnail'] else None
+       blog['thumbnail_url'] = f"/uploads/{blog.get('thumbnail', '')}" if blog.get('thumbnail') else None
+
         user_results.append(blog)
 
     return jsonify({'predefined': predefined_results, 'user': user_results})
