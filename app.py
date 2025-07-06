@@ -118,7 +118,7 @@ def login():
 @app.route('/send_otp_email', methods=['POST'])
 def send_otp_email():
     reconnect_db()
-    clear_results()
+    clear_results(cursor)
     data = request.get_json()
     email = data.get('email')
 
@@ -235,7 +235,7 @@ def search():
 @app.route('/categories')
 def get_categories():
     reconnect_db()
-    clear_results()
+    clear_results(cursor)
     cursor.execute("SELECT DISTINCT category FROM blogs")
     rows = cursor.fetchall()
     categories = [row['category'] for row in rows if row['category']]
@@ -273,7 +273,7 @@ def like_blog():
 @app.route('/view_blog/<int:blog_id>', methods=['POST'])
 def view_blog(blog_id):
     reconnect_db()
-    clear_results()
+    clear_results(cursor)
     cursor.execute("UPDATE blogs SET views = views + 1 WHERE id = %s", (blog_id,))
     db.commit()
     return jsonify({'status': 'success', 'message': 'View counted'})
@@ -281,7 +281,7 @@ def view_blog(blog_id):
 @app.route('/delete_blog', methods=['POST'])
 def delete_blog():
     reconnect_db()
-    clear_results()
+    clear_results(cursor)
     data = request.get_json()
     blog_id = data.get('blog_id')
     user_id = data.get('user_id')
