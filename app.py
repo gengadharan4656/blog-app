@@ -145,7 +145,6 @@ def reset_password():
         return jsonify({'status': 'error', 'message': 'Email not found'}), 404
     return jsonify({'status': 'success', 'message': 'Password updated'})
 
-@app.route('/submit_blog', methods=['POST'])
 def submit_blog():
     reconnect_db()
     user_id = request.form.get('user_id')
@@ -166,6 +165,10 @@ def submit_blog():
     db.commit()
 
     return jsonify({'status': 'success', 'message': 'Blog submitted successfully'})
+
+@app.route('/uploads/<filename>')
+def serve_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename
 
 @app.route('/search')
 def search():
@@ -199,10 +202,12 @@ def search():
             if cursor.fetchone():
                 blog['liked'] = True
 
+        blog['thumbnail_url'] = f"/uploads/{blog['thumbnail']}" if blog['thumbnail'] else None
         user_results.append(blog)
 
     return jsonify({'predefined': predefined_results, 'user': user_results})
 
+                               
 @app.route('/uploads/<filename>')
 def serve_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
