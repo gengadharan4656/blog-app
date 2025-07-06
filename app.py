@@ -27,7 +27,6 @@ db = mysql.connector.connect(
 cursor = db.cursor(dictionary=True)
 otp_store = {}
 
-# ✅ Updated reconnect_db with Railway config
 def reconnect_db():
     global db, cursor
     try:
@@ -245,6 +244,14 @@ def like_blog():
     except Exception as e:
         print("Error in like_blog:", str(e))
         return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/view_blog/<int:blog_id>', methods=['POST'])
+def view_blog(blog_id):
+    reconnect_db()
+    clear_results()
+    cursor.execute("UPDATE blogs SET views = views + 1 WHERE id = %s", (blog_id,))
+    db.commit()
+    return jsonify({'status': 'success', 'message': 'View counted'})
 
 @app.route('/delete_blog', methods=['POST'])
 def delete_blog():
