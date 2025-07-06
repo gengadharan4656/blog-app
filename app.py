@@ -172,6 +172,41 @@ def submit_blog():
 
     return jsonify({"status": "success", "message": "Blog submitted successfully"})
 
+@app.route('/suggested')
+def suggested_blogs():
+    reconnect_db()
+    clear_results()
+
+    cursor.execute("""
+        SELECT id, user_id, title, content, category, created_at, likes, views, thumbnail 
+        FROM blogs ORDER BY created_at DESC LIMIT 10
+    """)
+    blogs = cursor.fetchall()
+    result = []
+
+    for row in blogs:
+        blog = {
+            'id': row[0],
+            'user_id': row[1],
+            'title': row[2],
+            'content': row[3],
+            'category': row[4],
+            'created_at': row[5].isoformat() if row[5] else '',
+            'likes': row[6],
+            'views': row[7],
+            'thumbnail': row[8]
+        }
+
+        cursor.execute("SELECT username FROM users WHERE id = %s", (row[1],))
+        user = cursor.fetchone()
+        blog['username'] = user[0] if user else 'Anonymous'
+
+        result.append(blog)
+
+    return jsonify(result)
+
+
+
 @app.route('/delete_blog', methods=['POST'])
 def delete_blog():
     reconnect_db()
