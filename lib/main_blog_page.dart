@@ -119,7 +119,6 @@ class _MainBlogPageState extends State<MainBlogPage> {
                 final uri = Uri.parse("https://blog-app-k878.onrender.com/submit_blog");
                 final request = http.MultipartRequest('POST', uri);
 
-                // ✅ Fix: user_id must be passed from widget.userId
                 request.fields['user_id'] = widget.userId;
                 request.fields['title'] = title;
                 request.fields['content'] = content;
