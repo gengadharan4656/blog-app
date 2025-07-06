@@ -28,7 +28,7 @@ class _FullBlogPageState extends State<FullBlogPage> {
   void toggleLike() async {
     try {
       final response = await http.post(
-        Uri.parse('https://blog-app-k878.onrender.com/like_blog'), // ✅ Updated URL
+        Uri.parse('https://blog-app-k878.onrender.com/like_blog'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'user_id': int.parse(widget.userId),
@@ -57,6 +57,10 @@ class _FullBlogPageState extends State<FullBlogPage> {
 
   @override
   Widget build(BuildContext context) {
+    final String thumbnailUrl = (blog['thumbnail'] ?? '').toString().trim().isNotEmpty
+        ? blog['thumbnail']
+        : 'https://via.placeholder.com/600x300.png?text=No+Image';
+
     return Scaffold(
       appBar: AppBar(
         title: Text(blog['title'] ?? 'Blog'),
@@ -65,39 +69,59 @@ class _FullBlogPageState extends State<FullBlogPage> {
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          if (blog['thumbnail'] != null && blog['thumbnail'].toString().isNotEmpty)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                blog['thumbnail'],
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.network(
+              thumbnailUrl,
+              height: 200,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Image.network(
+                'https://via.placeholder.com/600x300.png?text=Image+Unavailable',
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    const SizedBox.shrink(),
               ),
             ),
+          ),
           const SizedBox(height: 16),
           Text(
             blog['content'] ?? '',
-            style: const TextStyle(fontSize: 16, height: 1.5),
+            style: const TextStyle(fontSize: 16, height: 1.6),
+          ),
+          const SizedBox(height: 30),
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            decoration: BoxDecoration(
+              color: liked ? Colors.red.shade50 : Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: toggleLike,
+                  child: Icon(
+                    liked ? Icons.favorite : Icons.favorite_border,
+                    color: Colors.red,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  "$likes Like${likes == 1 ? '' : 's'}",
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
-          Row(
-            children: [
-              IconButton(
-                icon: Icon(
-                  liked ? Icons.favorite : Icons.favorite_border,
-                  color: Colors.red,
-                ),
-                onPressed: toggleLike,
-              ),
-              Text(
-                '$likes likes',
-                style: const TextStyle(fontSize: 16),
-              ),
-            ],
-          ),
+          Center(
+            child: Text(
+              "By ${blog['username'] ?? 'Anonymous'}",
+              style: const TextStyle(fontSize: 14, color: Colors.black54),
+            ),
+          )
         ],
       ),
     );
