@@ -57,8 +57,7 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
       return;
     }
 
-    final uri = Uri.parse('https://blog-app-k878.onrender.com/submit_blog');   
-
+    final uri = Uri.parse('https://blog-app-k878.onrender.com/submit_blog');
     final request = http.MultipartRequest('POST', uri);
 
     request.fields['user_id'] = widget.userId;
@@ -67,9 +66,15 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
     request.fields['category'] = category;
 
     if (_imageBytes != null && _imageName != null) {
-      request.files.add(http.MultipartFile.fromBytes('thumbnail', _imageBytes!, filename: _imageName));
+      request.files.add(http.MultipartFile.fromBytes(
+        'thumbnail', _imageBytes!,
+        filename: _imageName,
+      ));
     } else if (_imageFile != null) {
-      request.files.add(await http.MultipartFile.fromPath('thumbnail', _imageFile!.path));
+      request.files.add(await http.MultipartFile.fromPath(
+        'thumbnail', _imageFile!.path,
+        filename: _imageName ?? path.basename(_imageFile!.path),
+      ));
     }
 
     try {
@@ -98,16 +103,28 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
     }
   }
 
+  Widget imagePreviewBox() {
+    return Container(
+      width: double.infinity,
+      height: 180,
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Center(child: imagePreview()),
+    );
+  }
+
   Widget imagePreview() {
     if (_imageFile != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: Image.file(_imageFile!, height: 150),
+        child: Image.file(_imageFile!, height: 160, fit: BoxFit.cover),
       );
     } else if (_imageBytes != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: Image.memory(_imageBytes!, height: 150),
+        child: Image.memory(_imageBytes!, height: 160, fit: BoxFit.cover),
       );
     } else {
       return const Text(
@@ -127,7 +144,10 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(controller: titleController, decoration: const InputDecoration(labelText: "Title")),
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(labelText: "Title"),
+              ),
               const SizedBox(height: 10),
               TextField(
                 controller: contentController,
@@ -135,7 +155,10 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
                 decoration: const InputDecoration(labelText: "Content"),
               ),
               const SizedBox(height: 10),
-              TextField(controller: categoryController, decoration: const InputDecoration(labelText: "Category")),
+              TextField(
+                controller: categoryController,
+                decoration: const InputDecoration(labelText: "Category"),
+              ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
                 icon: const Icon(Icons.image),
@@ -143,7 +166,7 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
                 onPressed: pickImage,
               ),
               const SizedBox(height: 12),
-              imagePreview(),
+              imagePreviewBox(),
               const SizedBox(height: 30),
               ElevatedButton.icon(
                 icon: const Icon(Icons.send),
