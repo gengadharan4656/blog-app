@@ -145,6 +145,7 @@ def reset_password():
         return jsonify({'status': 'error', 'message': 'Email not found'}), 404
     return jsonify({'status': 'success', 'message': 'Password updated'})
 
+@app.route('/submit_blog', methods=['POST'])
 def submit_blog():
     reconnect_db()
     user_id = request.form.get('user_id')
