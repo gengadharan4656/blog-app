@@ -50,9 +50,10 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
     final content = contentController.text.trim();
     final category = categoryController.text.trim();
 
-    if (title.isEmpty || content.isEmpty || category.isEmpty) {
+    // ✅ Mandatory thumbnail check
+    if (title.isEmpty || content.isEmpty || category.isEmpty || (_imageFile == null && _imageBytes == null)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill all fields")),
+        const SnackBar(content: Text("Please fill all fields and select a thumbnail")),
       );
       return;
     }
@@ -104,14 +105,24 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
   }
 
   Widget imagePreviewBox() {
-    return Container(
-      width: double.infinity,
-      height: 180,
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Center(child: imagePreview()),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          height: 180,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Center(child: imagePreview()),
+        ),
+        const SizedBox(height: 8),
+        if (_imageName != null)
+          Text("Selected: $_imageName", style: const TextStyle(fontSize: 13, color: Colors.grey)),
+        if (_imageName == null)
+          const Text("No image selected", style: TextStyle(color: Colors.red, fontSize: 13)),
+      ],
     );
   }
 
@@ -127,10 +138,7 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
         child: Image.memory(_imageBytes!, height: 160, fit: BoxFit.cover),
       );
     } else {
-      return const Text(
-        "No image selected",
-        style: TextStyle(color: Colors.grey, fontSize: 14),
-      );
+      return const Icon(Icons.image_not_supported, size: 50, color: Colors.grey);
     }
   }
 
@@ -162,7 +170,7 @@ class _SubmitBlogPageState extends State<SubmitBlogPage> {
               const SizedBox(height: 20),
               ElevatedButton.icon(
                 icon: const Icon(Icons.image),
-                label: const Text("Pick Thumbnail (Optional)"),
+                label: const Text("Pick Thumbnail"),
                 onPressed: pickImage,
               ),
               const SizedBox(height: 12),
