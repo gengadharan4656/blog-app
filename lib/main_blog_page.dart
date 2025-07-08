@@ -1,5 +1,3 @@
-// ✅ Final MainBlogPage with Infinite Scroll, Pull to Refresh, Category Filter & Search
-
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -26,6 +24,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController searchController = TextEditingController();
   File? imageFile;
+  String? imageName;
 
   @override
   void initState() {
@@ -33,7 +32,8 @@ class _MainBlogPageState extends State<MainBlogPage> {
     fetchCategories();
     fetchBlogs(reset: true);
     _scrollController.addListener(() {
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 300 && !isLoading && hasMore) {
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 &&
+          !isLoading && hasMore) {
         fetchBlogs();
       }
     });
@@ -42,13 +42,13 @@ class _MainBlogPageState extends State<MainBlogPage> {
   Future<void> fetchCategories() async {
     final url = Uri.parse("https://blog-app-k878.onrender.com/categories");
     try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final List<String> data = List<String>.from(json.decode(response.body));
+      final resp = await http.get(url);
+      if (resp.statusCode == 200) {
+        final List<String> data = List<String>.from(json.decode(resp.body));
         setState(() => categories = data);
       }
     } catch (e) {
-      print('Error fetching categories: $e');
+      debugPrint('Error fetching categories: $e');
     }
   }
 
@@ -57,26 +57,33 @@ class _MainBlogPageState extends State<MainBlogPage> {
     setState(() => isLoading = true);
 
     if (reset) {
-      blogs.clear();
       currentPage = 1;
       hasMore = true;
+      blogs.clear();
     }
 
     final url = Uri.parse(
-        "https://blog-app-k878.onrender.com/search?q=${Uri.encodeComponent(searchQuery)}&category=${Uri.encodeComponent(selectedCategory)}&page=$currentPage&user_id=${widget.userId}"
+      "https://blog-app-k878.onrender.com/search"
+      "?q=${Uri.encodeComponent(searchQuery)}"
+      "&category=${Uri.encodeComponent(selectedCategory)}"
+      "&page=$currentPage"
+      "&user_id=${widget.userId}"
     );
 
     try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List<dynamic> combinedBlogs = [...(data['predefined'] ?? []), ...(data['user'] ?? [])];
+      final resp = await http.get(url);
+      if (resp.statusCode == 200) {
+        final data = json.decode(resp.body) as Map<String, dynamic>;
+        final List<dynamic> newBlogs = [
+          ...(data['predefined'] ?? []),
+          ...(data['user'] ?? [])
+        ];
 
-        if (combinedBlogs.isEmpty) {
+        if (newBlogs.isEmpty) {
           hasMore = false;
         } else {
           setState(() {
-            blogs.addAll(combinedBlogs);
+            blogs.addAll(newBlogs);
             currentPage++;
           });
         }
@@ -84,234 +91,229 @@ class _MainBlogPageState extends State<MainBlogPage> {
         hasMore = false;
       }
     } catch (e) {
-      print('Error fetching blogs: $e');
+      debugPrint('Error fetching blogs: $e');
     } finally {
       setState(() => isLoading = false);
     }
   }
 
-  void onSearch(String query) {
-    setState(() {
-      searchQuery = query;
-      selectedCategory = '';
-    });
-    fetchBlogs(reset: true);
-  }
-
-  void onSelectCategory(String cat) {
-    setState(() {
-      selectedCategory = cat;
-      searchController.clear();
-      searchQuery = '';
-    });
-    fetchBlogs(reset: true);
-  }
-
   Future<void> deleteBlog(String blogId) async {
     final url = Uri.parse("https://blog-app-k878.onrender.com/delete_blog");
-    final response = await http.post(
+    final resp = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'blog_id': blogId, 'user_id': widget.userId}),
+      body: json.encode({'blog_id': blogId, 'user_id': widget.userId}),
     );
-    if (response.statusCode == 200) {
+    if (resp.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Blog deleted")));
       fetchBlogs(reset: true);
     }
   }
 
-  Future<void> toggleLike(String blogId, int index) async {
+  Future<void> toggleLike(String blogId, int idx) async {
     final url = Uri.parse("https://blog-app-k878.onrender.com/like_blog");
-    final response = await http.post(
+    final resp = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'blog_id': blogId, 'user_id': widget.userId}),
+      body: json.encode({'blog_id': blogId, 'user_id': widget.userId}),
     );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
+    if (resp.statusCode == 200) {
+      final data = json.decode(resp.body);
       setState(() {
-        blogs[index]['liked'] = data['liked'];
-        blogs[index]['likes'] = data['like_count'];
+        blogs[idx]['liked'] = data['liked'];
+        blogs[idx]['likes'] = data['like_count'];
       });
     }
   }
 
-  Future<void> handlePullToRefresh() async {
+  Future<void> _pullToRefresh() async {
     await fetchBlogs(reset: true);
   }
 
-  void showUploadDialog() {
-    final titleController = TextEditingController();
-    final contentController = TextEditingController();
-    final categoryController = TextEditingController();
+  Future<void> pickImageForUpload(StateSetter st) async {
+    final p = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (p != null) {
+      st(() {
+        imageFile = File(p.path);
+        imageName = p.name;
+      });
+    }
+  }
 
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text("Upload Blog"),
+  void showUploadDialog() {
+    final tC = TextEditingController();
+    final cC = TextEditingController();
+    final catC = TextEditingController();
+
+    showDialog(context: context, builder: (ctx) {
+      return StatefulBuilder(builder: (ctx, st) {
+        return AlertDialog(
+          title: const Text('Upload Blog'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Title')),
+                TextField(controller: tC, decoration: const InputDecoration(labelText: 'Title')),
                 const SizedBox(height: 10),
-                TextField(
-                  controller: contentController,
-                  decoration: const InputDecoration(labelText: 'Content'),
-                  keyboardType: TextInputType.multiline,
-                  minLines: 5,
-                  maxLines: 8,
+                TextField(controller: cC, decoration: const InputDecoration(labelText: 'Content'), minLines: 4, maxLines: 8),
+                const SizedBox(height: 10),
+                TextField(controller: catC, decoration: const InputDecoration(labelText: 'Category')),
+                const SizedBox(height: 10),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.image),
+                  label: const Text('Pick Thumbnail'),
+                  onPressed: () => pickImageForUpload(st),
                 ),
-                const SizedBox(height: 10),
-                TextField(controller: categoryController, decoration: const InputDecoration(labelText: 'Category')),
-                const SizedBox(height: 10),
-                ElevatedButton(
-                  onPressed: () async {
-                    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-                    if (picked != null) {
-                      setState(() => imageFile = File(picked.path));
-                    }
-                  },
-                  child: const Text("Pick Thumbnail (Optional)"),
-                ),
+                const SizedBox(height: 8),
+                if (imageName != null)
+                  Text('Selected: $imageName', style: const TextStyle(fontSize: 13)),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
-            TextButton(
-              onPressed: () async {
-                final title = titleController.text.trim();
-                final content = contentController.text.trim();
-                final category = categoryController.text.trim();
-                if (title.isEmpty || content.isEmpty || category.isEmpty) return;
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(onPressed: () async {
+              final title = tC.text.trim();
+              final cont = cC.text.trim();
+              final cat = catC.text.trim();
+              if (title.isEmpty || cont.isEmpty || cat.isEmpty || imageFile == null) return;
 
-                final uri = Uri.parse("https://blog-app-k878.onrender.com/submit_blog");
-                final request = http.MultipartRequest('POST', uri);
-                request.fields['user_id'] = widget.userId;
-                request.fields['title'] = title;
-                request.fields['content'] = content;
-                request.fields['category'] = category;
-                if (imageFile != null) {
-                  request.files.add(await http.MultipartFile.fromPath('thumbnail', imageFile!.path));
-                }
-                final response = await request.send();
-                if (response.statusCode == 200) {
-                  Navigator.pop(ctx);
-                  fetchBlogs(reset: true);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Uploaded")));
-                }
-              },
-              child: const Text("Submit"),
-            ),
+              final uri = Uri.parse("https://blog-app-k878.onrender.com/submit_blog");
+              final req = http.MultipartRequest('POST', uri)
+                ..fields['user_id'] = widget.userId
+                ..fields['title'] = title
+                ..fields['content'] = cont
+                ..fields['category'] = cat
+                ..files.add(await http.MultipartFile.fromPath('thumbnail', imageFile!.path));
+
+              final resp = await req.send();
+              if (resp.statusCode == 200) {
+                Navigator.pop(ctx);
+                setState(() {
+                  imageFile = null;
+                  imageName = null;
+                });
+                fetchBlogs(reset: true);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Uploaded")));
+              }
+            }, child: const Text('Submit')),
           ],
-        ),
-      ),
-    );
+        );
+      });
+    });
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext ctx) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Facts and Blogs"), actions: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Center(child: Text("User ID: ${widget.userId}")),
-        )
-      ]),
-      floatingActionButton: FloatingActionButton(
-        onPressed: showUploadDialog,
-        child: const Icon(Icons.add),
+      appBar: AppBar(
+        title: const Text('Facts and Blogs'),
+        actions: [ Padding(padding: const EdgeInsets.all(8), child: Center(child: Text('User: ${widget.userId}'))) ],
       ),
+      floatingActionButton: FloatingActionButton(onPressed: showUploadDialog, child: const Icon(Icons.add)),
       body: Column(
         children: [
           if (categories.isNotEmpty)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.all(10),
-              child: Row(
-                children: categories.map((cat) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ActionChip(
-                    label: Text(cat),
-                    onPressed: () => onSelectCategory(cat),
-                    backgroundColor: selectedCategory == cat ? Colors.blue.shade100 : null,
-                  ),
-                )).toList(),
+            SizedBox(
+              height: 50,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                children: categories.map((cat) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(cat),
+                      selected: selectedCategory == cat,
+                      onSelected: (_) => setState(() {
+                        selectedCategory = cat;
+                        searchController.clear();
+                        fetchBlogs(reset: true);
+                      }),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: TextField(
               controller: searchController,
-              decoration: const InputDecoration(
-                hintText: 'Search blogs...',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-              onSubmitted: onSearch,
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Search blogs...'),
+              onSubmitted: (val) {
+                setState(() {
+                  searchQuery = val;
+                  selectedCategory = '';
+                });
+                fetchBlogs(reset: true);
+              },
             ),
           ),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: handlePullToRefresh,
+              onRefresh: _pullToRefresh,
               child: ListView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.all(12),
                 itemCount: blogs.length + 1,
-                itemBuilder: (context, index) {
-                  if (index == blogs.length) {
-                    return isLoading ? const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())) : const SizedBox();
+                itemBuilder: (c,i){
+                  if (i == blogs.length) {
+                    return hasMore
+                        ? const Center(child: Padding(p: EdgeInsets.all(16), child: CircularProgressIndicator()))
+                        : const SizedBox();
                   }
 
-                  final blog = blogs[index];
-                  final blogImage = (blog['thumbnail'] ?? '').toString().trim().isNotEmpty
-                      ? 'https://blog-app-k878.onrender.com/uploads/${blog['thumbnail']}'
+                  final b = blogs[i];
+                  final img = (b['thumbnail'] ?? '').toString().isNotEmpty
+                      ? 'https://blog-app-k878.onrender.com/uploads/${b['thumbnail']}'
                       : 'https://via.placeholder.com/300x200.png?text=No+Image';
 
                   return Card(
                     margin: const EdgeInsets.only(bottom: 14),
+                    elevation: 3,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Image.network(blogImage, height: 180, width: double.infinity, fit: BoxFit.cover),
+                        ClipRRect(
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                          child: Image.network(img, height: 180, width: double.infinity, fit: BoxFit.cover),
+                        ),
                         Padding(
                           padding: const EdgeInsets.all(12),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(blog['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                              const SizedBox(height: 6),
-                              Text(
-                                (blog['content']?.toString().length ?? 0) > 100
-                                    ? blog['content'].toString().substring(0, 100) + '...'
-                                    : blog['content'],
-                              ),
-                              const SizedBox(height: 10),
+                              Text(b['title'] ?? '', style: const TextStyle(fontSize:18, fontWeight: FontWeight.bold)),
+                              const SizedBox(height:6),
+                              Text(b['content']?.toString().substring(0,100) ?? ''),
+                              const SizedBox(height:8),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text("By ${blog['username'] ?? 'Anonymous'}", style: const TextStyle(color: Colors.black54)),
-                                  Row(children: [
-                                    const Icon(Icons.remove_red_eye, size: 16, color: Colors.grey),
-                                    Text(" ${blog['views'] ?? 0}"),
-                                    const SizedBox(width: 12),
-                                    GestureDetector(
-                                      onTap: () => toggleLike(blog['id'].toString(), index),
-                                      child: Icon(
-                                        blog['liked'] == true ? Icons.favorite : Icons.favorite_border,
-                                        color: Colors.red,
+                                  Text('By ${b['username'] ?? 'Anon'}', style: const TextStyle(color: Colors.black54)),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.visibility, size:16, color:Colors.grey),
+                                      const SizedBox(width:4),
+                                      Text('${b['views'] ?? 0}'),
+                                      const SizedBox(width:12),
+                                      GestureDetector(
+                                        onTap: () => toggleLike(b['id'].toString(), i),
+                                        child: Icon(
+                                          b['liked']==true ? Icons.favorite : Icons.favorite_border,
+                                          color: Colors.red,
+                                        ),
                                       ),
-                                    ),
-                                    Text(" ${blog['likes'] ?? 0}"),
-                                    if ('${blog['user_id']}' == widget.userId)
-                                      IconButton(
-                                        icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                        onPressed: () => deleteBlog(blog['id'].toString()),
-                                      ),
-                                  ])
+                                      const SizedBox(width:4),
+                                      Text('${b['likes'] ?? 0}'),
+                                      if (b['user_id'].toString()==widget.userId)
+                                        IconButton(
+                                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                          onPressed: () => deleteBlog(b['id'].toString()),
+                                        ),
+                                    ],
+                                  )
                                 ],
                               )
                             ],
@@ -320,7 +322,7 @@ class _MainBlogPageState extends State<MainBlogPage> {
                       ],
                     ),
                   );
-                },
+                }
               ),
             ),
           )
