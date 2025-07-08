@@ -1,4 +1,4 @@
-# ✅ Final Updated Flask Backend with Live Like Fix
+# ✅ Final Updated Flask Backend with Live Like Fix and Thumbnail Required for Upload
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import mysql.connector
@@ -119,52 +119,32 @@ def submit_blog():
     cursor = db.cursor(dictionary=True)
 
     try:
-        # Step 1: Read all required fields
         user_id = request.form.get('user_id')
         title = request.form.get('title')
         content = request.form.get('content')
         category = request.form.get('category')
-
-        print("Received data:", user_id, title, content, category)
-
-        if not user_id or not title or not content or not category:
-            return jsonify({'status': 'error', 'message': 'Missing required fields'}), 400
-
-        # Step 2: Handle optional file
         file = request.files.get('thumbnail')
-        thumbnail = None
 
-        if file and file.filename:
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if not user_id or not title or not content or not category or not file:
+            return jsonify({'status': 'error', 'message': 'All fields including thumbnail are required'}), 400
 
-            print("Saving file to:", filepath)
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
 
-            try:
-                file.save(filepath)
-                thumbnail = filename
-            except Exception as e:
-                print("Error saving file:", e)
-                return jsonify({'status': 'error', 'message': 'File upload failed'}), 500
-
-        # Step 3: Insert blog into DB
         cursor.execute(
             "INSERT INTO blogs (user_id, title, content, category, thumbnail) VALUES (%s, %s, %s, %s, %s)",
-            (user_id, title, content, category, thumbnail)
+            (user_id, title, content, category, filename)
         )
         db.commit()
-
-        print("Blog inserted successfully")
         return jsonify({'status': 'success', 'message': 'Blog uploaded'})
 
     except Exception as e:
-        print("Upload error:", e)
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
     finally:
         cursor.close()
         db.close()
-
 
 @app.route('/uploads/<filename>')
 def serve_file(filename):
