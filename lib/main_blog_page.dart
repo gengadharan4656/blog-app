@@ -1,3 +1,5 @@
+// ✅ Final MainBlogPage with Infinite Scroll, Pull to Refresh, Category Filter & Search
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -16,6 +18,12 @@ class _MainBlogPageState extends State<MainBlogPage> {
   List<dynamic> blogs = [];
   List<String> categories = [];
   String searchQuery = '';
+  String selectedCategory = '';
+  int currentPage = 1;
+  bool isLoading = false;
+  bool hasMore = true;
+
+  final ScrollController _scrollController = ScrollController();
   final TextEditingController searchController = TextEditingController();
   File? imageFile;
 
@@ -23,33 +31,12 @@ class _MainBlogPageState extends State<MainBlogPage> {
   void initState() {
     super.initState();
     fetchCategories();
-    fetchBlogs();
-  }
-
-  Future<void> fetchBlogs() async {
-    final url = Uri.parse("https://blog-app-k878.onrender.com/search?q=${Uri.encodeComponent(searchQuery)}&user_id=${widget.userId}");
-    try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final predefined = List<Map<String, dynamic>>.from(data['predefined'] ?? []);
-        final userBlogs = List<Map<String, dynamic>>.from(data['user'] ?? []);
-        final combinedBlogs = [...predefined, ...userBlogs];
-
-        combinedBlogs.sort((a, b) {
-          final aDate = DateTime.tryParse(a['created_at'] ?? '') ?? DateTime.now();
-          final bDate = DateTime.tryParse(b['created_at'] ?? '') ?? DateTime.now();
-          return bDate.compareTo(aDate);
-        });
-
-        setState(() => blogs = combinedBlogs);
-      } else {
-        setState(() => blogs = []);
+    fetchBlogs(reset: true);
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 300 && !isLoading && hasMore) {
+        fetchBlogs();
       }
-    } catch (e) {
-      print('Error fetching blogs: $e');
-      setState(() => blogs = []);
-    }
+    });
   }
 
   Future<void> fetchCategories() async {
@@ -65,9 +52,59 @@ class _MainBlogPageState extends State<MainBlogPage> {
     }
   }
 
+  Future<void> fetchBlogs({bool reset = false}) async {
+    if (isLoading) return;
+    setState(() => isLoading = true);
+
+    if (reset) {
+      blogs.clear();
+      currentPage = 1;
+      hasMore = true;
+    }
+
+    final url = Uri.parse(
+        "https://blog-app-k878.onrender.com/search?q=${Uri.encodeComponent(searchQuery)}&category=${Uri.encodeComponent(selectedCategory)}&page=$currentPage&user_id=${widget.userId}"
+    );
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List<dynamic> combinedBlogs = [...(data['predefined'] ?? []), ...(data['user'] ?? [])];
+
+        if (combinedBlogs.isEmpty) {
+          hasMore = false;
+        } else {
+          setState(() {
+            blogs.addAll(combinedBlogs);
+            currentPage++;
+          });
+        }
+      } else {
+        hasMore = false;
+      }
+    } catch (e) {
+      print('Error fetching blogs: $e');
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
   void onSearch(String query) {
-    setState(() => searchQuery = query);
-    fetchBlogs();
+    setState(() {
+      searchQuery = query;
+      selectedCategory = '';
+    });
+    fetchBlogs(reset: true);
+  }
+
+  void onSelectCategory(String cat) {
+    setState(() {
+      selectedCategory = cat;
+      searchController.clear();
+      searchQuery = '';
+    });
+    fetchBlogs(reset: true);
   }
 
   Future<void> deleteBlog(String blogId) async {
@@ -78,10 +115,8 @@ class _MainBlogPageState extends State<MainBlogPage> {
       body: jsonEncode({'blog_id': blogId, 'user_id': widget.userId}),
     );
     if (response.statusCode == 200) {
-      fetchBlogs();
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Blog deleted")));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to delete blog")));
+      fetchBlogs(reset: true);
     }
   }
 
@@ -99,12 +134,14 @@ class _MainBlogPageState extends State<MainBlogPage> {
         blogs[index]['liked'] = data['liked'];
         blogs[index]['likes'] = data['like_count'];
       });
-    } else {
-      print("Failed to like blog");
     }
   }
 
-  void showUploadDialog(BuildContext context, VoidCallback onUploadComplete) {
+  Future<void> handlePullToRefresh() async {
+    await fetchBlogs(reset: true);
+  }
+
+  void showUploadDialog() {
     final titleController = TextEditingController();
     final contentController = TextEditingController();
     final categoryController = TextEditingController();
@@ -139,11 +176,6 @@ class _MainBlogPageState extends State<MainBlogPage> {
                   },
                   child: const Text("Pick Thumbnail (Optional)"),
                 ),
-                if (imageFile != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(imageFile!.path.split('/').last, style: const TextStyle(fontSize: 13, color: Colors.grey)),
-                  ),
               ],
             ),
           ),
@@ -154,35 +186,22 @@ class _MainBlogPageState extends State<MainBlogPage> {
                 final title = titleController.text.trim();
                 final content = contentController.text.trim();
                 final category = categoryController.text.trim();
-
-                if (title.isEmpty || content.isEmpty || category.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please fill all fields")));
-                  return;
-                }
+                if (title.isEmpty || content.isEmpty || category.isEmpty) return;
 
                 final uri = Uri.parse("https://blog-app-k878.onrender.com/submit_blog");
                 final request = http.MultipartRequest('POST', uri);
-
                 request.fields['user_id'] = widget.userId;
                 request.fields['title'] = title;
                 request.fields['content'] = content;
                 request.fields['category'] = category;
-
                 if (imageFile != null) {
                   request.files.add(await http.MultipartFile.fromPath('thumbnail', imageFile!.path));
                 }
-
-                try {
-                  final response = await request.send();
-                  if (response.statusCode == 200) {
-                    Navigator.pop(ctx);
-                    onUploadComplete();
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Blog uploaded successfully")));
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Upload failed (${response.statusCode})")));
-                  }
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                final response = await request.send();
+                if (response.statusCode == 200) {
+                  Navigator.pop(ctx);
+                  fetchBlogs(reset: true);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Uploaded")));
                 }
               },
               child: const Text("Submit"),
@@ -196,18 +215,14 @@ class _MainBlogPageState extends State<MainBlogPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Facts and Blogs'),
-        backgroundColor: Colors.blue,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: Center(child: Text("User ID: ${widget.userId}", style: const TextStyle(fontSize: 14))),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text("Facts and Blogs"), actions: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Center(child: Text("User ID: ${widget.userId}")),
+        )
+      ]),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => showUploadDialog(context, fetchBlogs),
+        onPressed: showUploadDialog,
         child: const Icon(Icons.add),
       ),
       body: Column(
@@ -215,11 +230,15 @@ class _MainBlogPageState extends State<MainBlogPage> {
           if (categories.isNotEmpty)
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.all(10),
               child: Row(
                 children: categories.map((cat) => Padding(
                   padding: const EdgeInsets.only(right: 8),
-                  child: ActionChip(label: Text(cat), onPressed: () => onSearch(cat)),
+                  child: ActionChip(
+                    label: Text(cat),
+                    onPressed: () => onSelectCategory(cat),
+                    backgroundColor: selectedCategory == cat ? Colors.blue.shade100 : null,
+                  ),
                 )).toList(),
               ),
             ),
@@ -227,103 +246,84 @@ class _MainBlogPageState extends State<MainBlogPage> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: TextField(
               controller: searchController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: 'Search blogs...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
               ),
               onSubmitted: onSearch,
             ),
           ),
           Expanded(
-            child: blogs.isEmpty
-                ? const Center(child: Text("No blogs found. Try exploring suggestions above!"))
-                : ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: blogs.length,
-                    itemBuilder: (context, index) {
-                      final blog = blogs[index];
-                      final blogImage = (blog['thumbnail'] ?? '').toString().trim().isNotEmpty
-                          ? 'https://blog-app-k878.onrender.com/uploads/${blog['thumbnail']}'
-                          : 'https://via.placeholder.com/300x200.png?text=No+Thumbnail';
+            child: RefreshIndicator(
+              onRefresh: handlePullToRefresh,
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.all(12),
+                itemCount: blogs.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == blogs.length) {
+                    return isLoading ? const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())) : const SizedBox();
+                  }
 
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 3,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Image.network(
-                              blogImage,
-                              height: 180,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Image.network(
-                                  'https://via.placeholder.com/300x200.png?text=Image+Unavailable',
-                                  height: 180,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                );
-                              },
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(14),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(blog['title'] ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    (blog['content']?.toString().length ?? 0) > 100
-                                        ? blog['content']!.toString().substring(0, 100) + '...'
-                                        : blog['content'],
-                                    style: const TextStyle(fontSize: 14, color: Colors.black87),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Chip(label: Text(blog['category'] ?? 'Other'), backgroundColor: Colors.blue.shade50),
-                                      Row(children: [
-                                        Text("By ${blog['username'] ?? 'Anonymous'}", style: const TextStyle(fontSize: 13, color: Colors.black54)),
-                                        const SizedBox(width: 12),
-                                        const Icon(Icons.remove_red_eye, size: 16, color: Colors.grey),
-                                        const SizedBox(width: 4),
-                                        Text('${blog['views'] ?? 0}', style: const TextStyle(color: Colors.grey)),
-                                        const SizedBox(width: 12),
-                                        GestureDetector(
-                                          onTap: () => toggleLike(blog['id'].toString(), index),
-                                          child: Icon(
-                                            blog['liked'] == true ? Icons.favorite : Icons.favorite_border,
-                                            size: 18,
-                                            color: Colors.red,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text('${blog['likes'] ?? 0}', style: const TextStyle(color: Colors.grey)),
-                                        if ('${blog['user_id']}' == widget.userId)
-                                          IconButton(
-                                            icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                            onPressed: () => deleteBlog(blog['id'].toString()),
-                                          ),
-                                      ])
-                                    ],
-                                  )
-                                ],
+                  final blog = blogs[index];
+                  final blogImage = (blog['thumbnail'] ?? '').toString().trim().isNotEmpty
+                      ? 'https://blog-app-k878.onrender.com/uploads/${blog['thumbnail']}'
+                      : 'https://via.placeholder.com/300x200.png?text=No+Image';
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Image.network(blogImage, height: 180, width: double.infinity, fit: BoxFit.cover),
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(blog['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                              const SizedBox(height: 6),
+                              Text(
+                                (blog['content']?.toString().length ?? 0) > 100
+                                    ? blog['content'].toString().substring(0, 100) + '...'
+                                    : blog['content'],
                               ),
-                            )
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text('Founded by Genga Dharan', style: TextStyle(color: Colors.grey)),
-          ),
+                              const SizedBox(height: 10),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text("By ${blog['username'] ?? 'Anonymous'}", style: const TextStyle(color: Colors.black54)),
+                                  Row(children: [
+                                    const Icon(Icons.remove_red_eye, size: 16, color: Colors.grey),
+                                    Text(" ${blog['views'] ?? 0}"),
+                                    const SizedBox(width: 12),
+                                    GestureDetector(
+                                      onTap: () => toggleLike(blog['id'].toString(), index),
+                                      child: Icon(
+                                        blog['liked'] == true ? Icons.favorite : Icons.favorite_border,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                    Text(" ${blog['likes'] ?? 0}"),
+                                    if ('${blog['user_id']}' == widget.userId)
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                        onPressed: () => deleteBlog(blog['id'].toString()),
+                                      ),
+                                  ])
+                                ],
+                              )
+                            ],
+                          ),
+                        )
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          )
         ],
       ),
     );
